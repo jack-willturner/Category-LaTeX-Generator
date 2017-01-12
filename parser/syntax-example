@@ -1,0 +1,15 @@
+Morphisms:
+  f :
+    | Inputs  -> a
+    | Outputs -> x, y, z
+  g :
+    | Inputs  -> a, b, c
+    | Outputs -> x
+
+Wires:
+  | a = f.x -> g.a
+  | b = f.y -> g.b
+  | c = f.z -> g.c
+
+Diagram:
+  [f] ; [g]
