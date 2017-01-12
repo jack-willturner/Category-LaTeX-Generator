@@ -1,0 +1,63 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{textcomp}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows}
+
+\title{Diagram Practice}
+%\author{Jack Turner}
+\date{}
+
+\begin{document}
+
+\tikzset{%
+  block/.style    = {draw, thick, rectangle, minimum height = 3em,
+    minimum width = 3em},
+  sum/.style      = {draw, circle, node distance = 2cm}, % Adder
+  input/.style    = {coordinate}, % Input
+  output/.style   = {coordinate} % Output
+}
+
+
+\maketitle
+
+\tikzstyle{morphism}=[minimum size = 7mm, above=0mm, rectangle, draw=black, fill=white, thick]
+\tikzstyle{empty}   =[circle, draw=white, fill=white, thick]
+
+\section{Unit}
+\begin{tikzpicture}
+    \node[empty] (empty1) {};
+    \node[empty] (empty2) [right of=empty1] {};
+    
+    \draw [black] (empty1.east) -- (empty2.west);
+\end{tikzpicture}
+
+
+\section{Tensor product}
+\begin{tikzpicture}
+         \node[empty]         (empty1)                   {};
+         \node[empty]         (empty2) [below of=empty1] {};
+         \node[morphism]      (morph1) [right of=empty1] {$f$};
+         \node[morphism]      (morph2) [right of=empty2] {$g$};
+         \node[empty]         (empty3) [right of=morph1] {};
+         \node[empty]         (empty4) [right of=morph2] {};
+         
+         \draw [black] (empty1.east) -- (morph1.west);
+         \draw [black] (empty2.east) -- (morph2.west);
+         \draw [black] (morph1.east) -- (empty3.west);
+         \draw [black] (morph2.east) -- (empty4.west);
+\end{tikzpicture}
+
+\section{Composition}
+\begin{tikzpicture}
+    \node[empty] (empty1) {};
+    \node[morphism] (f)      [right of=empty1]  {$f$};
+    \node[morphism] (g)      [right of=f]       {$g$};
+    \node[empty]    (empty2) [right of=g]       {};
+    
+    \draw [black] (empty1.east) -- (f.west);
+    \draw [black] (f.east)      -- (g.west);
+    \draw [black] (g.east)      -- (empty2.west);
+\end{tikzpicture}
+
+\end{document}
