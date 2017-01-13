@@ -14,16 +14,12 @@ let next_line lexbuf =
     }
 }
 
-(* Define basic data types *)
-
-let int = '-'? ['0'-'9'] ['0'-'9']*
-
-let letter = ['a'-'z' 'A'-'Z']
-let digit = ['0'-'9']
-let id = letter+ digit*
-
 let whitespace = [' ' '\t']+
 let newline = "\r" | "\n" | "\r\n"
+
+let digit = ['0'-'9']
+let letter = ['a'-'z' 'A'-'Z']
+let id = letter+ digit*
 
 rule read =
 	parse
@@ -31,8 +27,6 @@ rule read =
 	| newline 											{incr lineno; read lexbuf}
 	| "(*"		  	                 	{comment lexbuf; read lexbuf}
 	| "*)"        	                {read lexbuf}
-	| int                           {INT (int_of_string)}
-	| id 														{ID id}
 	| '+'                           {TENSOR}
 	| ';'                           {COMPOSE}
 	| '.'    												{DOT}
@@ -48,12 +42,13 @@ rule read =
 	| "Diagram" 										{DIAGRAM}
 	| "Inputs" 											{INPUTS}
 	| "Outputs"											{OUTPUTS}
-	| eof                           {EOF}
+	| id 	 	  											{STRING (Lexing.lexeme lexbuf)}
+	| eof														{EOF}
 	| _ 		  		 									{ raise (SyntaxError ("Unexpected char: " ^
 									 									Lexing.lexeme lexbuf)) }
 and comment =
 	parse
-	| "*)" 			{ () }
-	| "\n"			{ incr lineno; comment lexbuf }
-	| _ 			{ comment lexbuf }
-	| eof 			{ () }
+	| "*)" 													{ () }
+	| "\n"													{ incr lineno; comment lexbuf }
+	| _ 														{ comment lexbuf }
+	| eof 													{ () }

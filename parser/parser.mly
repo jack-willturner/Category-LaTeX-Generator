@@ -5,7 +5,6 @@
 (* TODO make wire syntax clearer (especially for the dangling case) *)
 
 (***** DATA TYPES *****)
-%token  <int>    INT
 %token  <string> STRING
 
 (***** TOKENS *****)
@@ -20,38 +19,35 @@
 (***** PRECEDENCE RULES *****)
 %left  TENSOR
 %left  COMPOSE
-%right EQUAL
-%right OPEN_SQ
 
 
 (***** PARSING RULES *****)
-%start <Ast.expression> top
+%start <Ast.program> top
 %%
 
 morphism_def:
-  | morphism_id = string; COLON;
-    BAR; INPUTS;  ARROW; i_list = separated_list(string, comma);
-    BAR; OUTPUTS; ARROW; o_list = separated_list(string, comma)
+  | morphism_id = STRING; COLON;
+    BAR; INPUTS;  ARROW; i_list = separated_list(COMMA, STRING);
+    BAR; OUTPUTS; ARROW; o_list = separated_list(COMMA, STRING);
 
     {Morphism(morphism_id, i_list, o_list)}
 
-(* This syntax is ugly for defining dangling wires - TODO *)
 wire_def:
-  | wire_id   = string; EQUAL;
-    from_exp  = string; DOT; from_port = string;
-    ARROW;
-    to_exp    = string; DOT; to_port = string
+  | wire_id   = STRING; EQUAL;
+    from_exp  = STRING; DOT;
+    from_port = STRING; ARROW;
+    to_exp    = STRING; DOT; to_port = STRING
 
     {Wire(wire_id, from_exp, from_port, to_exp, to_port)}
 
 diagram:
   | IDENTITY                                {Identity}
-  | OPEN_SQ; morph_id = string; CLOSE_SQ    {Morphism_ID morph_id}
-  | wire_id = string                        {Wire_ID wire_id}
+  | OPEN_SQ; morph_id = STRING; CLOSE_SQ    {Morphism_ID morph_id}
+  | wire_id = STRING                        {Wire_ID wire_id}
   | e=diagram;    COMPOSE; f = diagram      {Composition(e,f)}
   | e=diagram;    TENSOR;  f = diagram      {Tensor (e,f)}
 
-program:
-  | MORPHISMS; COLON; BAR; m_list = separated_list(morphism_def,BAR);
-    WIRES;     COLON; BAR; w_list = separated_list(wire_def,BAR);
-    DIAGRAM;   COLON; d = diagram           {Program(m_list, w_list, d)}
+top:
+  | MORPHISMS; COLON; BAR; m_list = separated_list(BAR,morphism_def);
+    WIRES;     COLON; BAR; w_list = separated_list(BAR,wire_def);
+    DIAGRAM;   COLON; d = diagram; EOF      {Program(m_list, w_list, d)}
