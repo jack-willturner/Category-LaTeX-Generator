@@ -1,13 +1,40 @@
-Morphisms:
-  | fmorphism :
-    | Inputs  -> a
-    | Outputs -> x, y, z
-  | gmorphism :
-    | Inputs  -> a, b, c
-    | Outputs -> x
-Wires:
-  | a = f.x -> g.a
-  | b = f.y -> g.b
-  | c = f.z -> g.c
-Diagram:
-  [f] ; [g]
+box f : 1 -> 3.
+box g : 3 -> 1;
+link y b, z c, x a.
+out x y z. f | in a b c. g
+
+
+(*
+STAGE 1:
+    f : i1
+        o1, o2, o3
+
+    g : i2, i3, i4
+        o4
+
+STAGE 2:
+    y -> b
+    z -> c
+    x -> a
+
+STAGE 3:
+    f : i1
+        x, y, z
+    g : a, b, c
+        o4
+*)
+
+(*
+          -----[g]-----
+          |
+---[f]----
+          |
+          -----[h]-----
+
+
+box f : 1 -> 2.
+box g : 1 -> 1.
+box h : 1 -> 1;
+link x a, y b.
+out x y. f | in a b. (g + h)
+*)

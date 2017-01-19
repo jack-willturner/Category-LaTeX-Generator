@@ -28,20 +28,18 @@ rule read =
 	| "(*"		  	                 	{comment lexbuf; read lexbuf}
 	| "*)"        	                {read lexbuf}
 	| '+'                           {TENSOR}
-	| ';'                           {COMPOSE}
 	| '.'    												{DOT}
 	| ','														{COMMA}
+	| ';'														{SEMICOLON}
 	| '|'														{BAR}
-	| '['														{OPEN_SQ}
-	| ']'														{CLOSE_SQ}
 	| ':'														{COLON}
-	| '=' 													{EQUAL}
 	| "->" 													{ARROW}
-	| "Morphisms"                   {MORPHISMS}
-	| "Wires"                      	{WIRES}
-	| "Diagram" 										{DIAGRAM}
-	| "Inputs" 											{INPUTS}
-	| "Outputs"											{OUTPUTS}
+	| "box"			                    {BOX}
+	| "link"                      	{LINK}
+	| "in" 													{INPUTS}
+	| "out"													{OUTPUTS}
+	| "-1-"														{IDENTITY}
+	| digit													{INT (int_of_string (Lexing.lexeme lexbuf))}
 	| id 	 	  											{STRING (Lexing.lexeme lexbuf)}
 	| eof														{EOF}
 	| _ 		  		 									{ raise (SyntaxError ("Unexpected char: " ^
