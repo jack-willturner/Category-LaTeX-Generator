@@ -1,7 +1,11 @@
-box f : 1 -> 3.
-box g : 3 -> 1;
-link y b, z c, x a.
-out x y z. f | in a b c. g
+module m {
+  box f : 1 -> 2.
+  box g : 1 -> 1.
+  box h : 2 -> 1.
+  link x y. f[1,x] ; g ; [1,y]h
+}
+out a. m | in b. n
+
 
 
 (*
@@ -37,4 +41,14 @@ box g : 1 -> 1.
 box h : 1 -> 1;
 link x a, y b.
 out x y. f | in a b. (g + h)
+*)
+
+
+
+
+(*
+
+
+
+
 *)

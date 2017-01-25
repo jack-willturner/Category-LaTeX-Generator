@@ -4,7 +4,7 @@ open Buffer
 open Printf
 
 (* First, set up a hashtable of morphisms *)
-let morphisms = Hashtbl.create 64      (* f : 1 -> 3 :: f | 1,3 *)
+let morphisms : (Ast.diagram, (string list, string list)) Hashtbl.t = Hashtbl.create 64      (* f : 1 -> 3 :: f | 1,3 *)
 let inputs    = Hashtbl.create 64      (* f : 1 -> 3 :: f | i1  *)
 let outputs   = Hashtbl.create 64      (* f : 1 -> 3 :: f | o1, o2, o3 *)
 let temporary = Buffer.create  64
@@ -14,10 +14,10 @@ let inputNodeCount  = ref 0
 let outputNodeCount = ref 0
 let morphismCount   = ref 0
 
-let new_input_node()   = inputNodeCount   := !inputNodeCount  + 1; (!inputNodeCount   - 1)
-let new_output_node()  = outputNodeCount  := !outputNodeCount + 1; (!outputNodeCount  - 1)
-let hiddenNode()       = hiddenNodeCount  := !hiddenNodeCount + 1; (!hiddenNodeCount  - 1)
-let morphism()         = morphismCount    := !morphismCount   + 1; (!morphismCount    - 1)
+let new_input_node()   = inputNodeCount   := !inputNodeCount  + 1; ("i" ^ string_of_int(!inputNodeCount - 1))
+let new_output_node()  = outputNodeCount  := !outputNodeCount + 1; ("o" ^ string_of_int(!outputNodeCount  - 1))
+let hiddenNode()       = hiddenNodeCount  := !hiddenNodeCount + 1; ("empty" ^string_of_int(!hiddenNodeCount  - 1))
+let morphism()         = morphismCount    := !morphismCount   + 1; ("morph" ^ string_of_int(!morphismCount    - 1))
 
 let prefix = "\\tikzstyle{morphism}=[minimum size = 3cm, above=0mm, rectangle, draw=black, fill=white, thick]\n
 \\tikzstyle{empty}   =[circle, draw=white, fill=white, thick] \n
@@ -25,55 +25,38 @@ let prefix = "\\tikzstyle{morphism}=[minimum size = 3cm, above=0mm, rectangle, d
 
 let suffix  = "\\end {tikzpicture}"
 
-let rec rightmost = function
-  | Identity            -> failwith "not implemented"
-  | Tensor(d1, d2)      -> rightmost d2              (* TODO check that this can be used for top *)
-  | Composition(d1,d2)  -> rightmost d2
-  | Morphism(m)         -> m
-
-let rec width = function
-  | Identity            -> 3
-  | Tensor(d1,d2)       -> max (width d1) (width d2)
-  | Composition(d1,d2)  -> width d1 + width d2
-  | Morphism            -> 3
-
-let rec height = function
-  | Identity            -> 1
-  | Tensor(d1,d2)       -> height d1 + height d2
-  | Composition(d1,d2)  -> max (height d1) (height d2)
-  | Morphism            -> 1
-
 let rec compile_diagram = function
   | Identity                -> Identity
   | Tensor(d1, d2)          -> Tensor(d1,d2)
   | Composition(f,g,ins,outs) ->
-        let outputs_from_f = Hashtbl.find outputs f in  (* [o1,o2,o3] *)
-        assert List.length outputs_from_f = List.length outs;
+        let outputs_from_f = Hashtbl.find outputs f in
         Hashtbl.replace outputs f outs;
         let inputs_to_g = Hashtbl.find inputs g in
-        assert List.length inputs_to_g = List.length ins;
         Hashtbl.replace inputs g ins;
         Composition(f,g,ins,outs)
   | Morphism m              -> Morphism m
-
 
 (* Potential solution for morphism recurrence problem:
       - label all the morphisms by number
       - put the morphisms back in the tree with their new label *)
 
+let rec gen_inputs = function
+  | 0       -> []
+  | n       -> let n1 = new_input_node () in
+                n1 :: (gen_inputs (n-1))
+
+let rec gen_outputs = function
+  | 0      -> []
+  | n      -> let n1 = new_output_node () in
+                n1 :: (gen_outputs (n-1))
+
 let rec update_morphism_table = function
   | []        -> ()
-  | (Box(name, ins, outs)::xs) ->                     (* going to have a problem with *)
-          let inputs' = [] in                         (* multiple occurrences of a morphism *)
-          let inputs'' = (for i = 1 to ins do
-            inputs :: (new_input ())
-          done) in
-          let outputs' = [] in
-          let outputs'' = (for i = 1 to outs do
-            outputs :: (new_output ())
-          done) in
-          Hashtbl.add inputs name inputs'';
-          Hashtbl.add outputs name outputs'';
+  | (Box(name, ins, outs)::xs) ->
+          let inputs' = gen_inputs ins in
+          let outputs' = gen_outputs outs in
+          Hashtbl.add inputs (Morphism name) inputs';
+          Hashtbl.add outputs (Morphism name) outputs';
           update_morphism_table xs
 
 let rec draw_wires = function
@@ -82,44 +65,51 @@ let rec draw_wires = function
           "\\draw [black] (" ^ from_ ^ ".east) -- (" ^ to_ ^ ".west);\n" ^ (draw_wires xs)
 
 let rec draw_structurally x y tree =
-  let max_width = width tree in
-  let max_height = height tree in
   (* Create a grid of max_width * max_height *)
   (* Scan left to right adding morphisms to boxes *)
   match tree with
     | Identity                  ->
         let empty_left = hiddenNode() in
         let empty_right = hiddenNode() in
-        "\\node (" ^ empty_left  ^ ")\tat (" ^ x ^ "," ^ (y) ^ ")\t\t{}\n"
-        "\\node (" ^ empty_right ^ ")\tat (" ^ (x+2) ^ "," ^ (y) ^ ")\t\t{}\n"
+        "\\node (" ^ empty_left  ^ ")\tat (" ^ (x |> string_of_int) ^ "," ^ (y |> string_of_int) ^ ")\t\t{}\n" ^
+        "\\node (" ^ empty_right ^ ")\tat (" ^ ((x+2)|>string_of_int) ^ "," ^ (y|>string_of_int) ^ ")\t\t{}\n" ^
         "\\draw [black] (" ^ empty_left ^ ".east) -- (" ^ empty_right ^ ".west);\n"
     | Morphism m                ->
-        let ins = Hashtbl.find inputs m in
-        let outs = Hashtbl.find inputs m in
-        let m_y = List.length outs in
+        let ins = Hashtbl.find inputs (Morphism m) in
+        let outs = Hashtbl.find inputs (Morphism m) in
+        let m_y = List.length outs |> string_of_int in
         let height_of_grid = max (List.length outs * 2 - 1) (List.length ins * 2 - 1) in
         (* Draw nodes *)
         for i = 0 to (List.length ins) do
-          "\\node[empty] (" ^ nth ins i ^ ")\tat (" ^ x ^ "," ^ (y+i) ^ ")\t\t{};\n" |> Buffer.add_string temporary
+          "\\node[empty] (" ^ List.nth ins i ^ ")\tat (" ^ (x|>string_of_int) ^ "," ^ (y+i|>string_of_int) ^ ")\t\t{};\n" |> Buffer.add_string temporary
         done;
         for i = 0 to (List.length outs) do
-          "\\node[empty] (" ^ nth outs i ^ ")\tat (" ^ (x+4) ^ "," ^ (y+i) ^ ")\t\t{};\n" |> Buffer.add_string temporary
+          "\\node[empty] (" ^ List.nth outs i ^ ")\tat (" ^ (x+4|>string_of_int) ^ "," ^ (y+i|>string_of_int) ^ ")\t\t{};\n" |> Buffer.add_string temporary
         done;
-        "\\node[morphism] (" ^ m ^ ")\tat (" ^ (x+2) ^ "," ^ m_y ^ ")\t\t{$" ^ m ^"$};\n" |> Buffer.add_string temporary;
+        "\\node[morphism] (" ^ m ^ ")\tat (" ^ (x+2|>string_of_int) ^ "," ^ m_y ^ ")\t\t{$" ^ m ^"$};\n" |> Buffer.add_string temporary;
         (* Connect wires *)
         for i = 0 to (List.length ins) do
-          "\\draw [black] (" ^ nth ins i ^ ".east) -- (" ^ m ^ ".west);\n" |> Buffer.add_string temporary
-        done
+          "\\draw [black] (" ^ List.nth ins i ^ ".east) -- (" ^ m ^ ".west);\n" |> Buffer.add_string temporary
+        done;
         for i = 0 to (List.length outs) do
-          "\\draw [black] (" ^ m ^ ".east) -- (" ^ nth outs i ^ ".west);\n" |> Buffer.add_string temporary
-        done
+          "\\draw [black] (" ^ m ^ ".east) -- (" ^ List.nth outs i ^ ".west);\n" |> Buffer.add_string temporary
+        done;
         let morphism_drawing = Buffer.contents temporary in
         Buffer.clear temporary;
         morphism_drawing
-    | Tensor(a,b)               -> failwith "not implemented: draw tensor structurally"
-    | Composition(f,g,ins,outs) -> failwith "not implemented: draw composition structurally"
-
-
+    | Tensor(a,b)               ->
+        (*  |_|--------|_a_|--------|_|   *)
+        (*                                *)
+        (*  |_|--------|_b_|--------|_|   *)
+        let a' = draw_structurally x y a in
+        let b' = draw_structurally x (y+2) b in
+        a' ^ b'
+    | Composition(f,g,ins,outs) ->
+        let f' = draw_structurally x y f in
+        let g' = draw_structurally (x+2) y g in
+        f' ^ g'
+    | Subdiagram(diagram,ins,outs) ->
+        draw_structurally diagram
 
 let compile_program = function
   | Program(b_list, w_list, diagram) ->

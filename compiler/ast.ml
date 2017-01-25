@@ -8,19 +8,30 @@ type wire =
 (* AST for string-diagrams *)
 type diagram =
   | Identity
-  | Morphism of string
+  | Morphism of string * string list * string list
   | Tensor of diagram * diagram
-  | Composition of diagram * diagram * string list * string list
+  | Composition of diagram * diagram
+  | Subdiagram of diagram * int * int  (* ins and outs *)
+
+type module_def =
+  | Module of string * box list * wire list * diagram
+
+type definition =
+  | Diagram of box list * wire list  * diagram
 
 type program =
-  | Program of box list * wire list  * diagram
+  | Program of module_def list * definition list
 
 (* Pretty printing for the AST *)
 let rec string_of_diagram = function
   | Identity                         -> "Identity"
-  | Morphism m                       -> m
+  | Morphism (m, ins, outs)          -> m
   | Tensor (f,g)                     -> string_of_diagram f ^ string_of_diagram g
-  | Composition (f,g,ins,outs)       -> "Composition(" ^ (string_of_diagram f) ^ "," ^ (string_of_diagram g) ^"  )"
+  | Composition (f,g)       -> "Composition(" ^ (string_of_diagram f) ^ "," ^ (string_of_diagram g) ^"  )"
+  | Subdiagram (diagram', ins, outs) -> string_of_diagram diagram'
+
+let string_of_definition = function
+  | Diagram (b_list, w_list, diagram) -> string_of_diagram diagram
 
 let string_of_top = function
-  | Program(b_list, w_list, diag) -> string_of_diagram diag
+  | Program(module_list, diagram_list) -> List.fold_left (^) "" (List.map string_of_definition diagram_list)
