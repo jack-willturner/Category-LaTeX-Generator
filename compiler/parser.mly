@@ -43,7 +43,6 @@ diagram:
   | d1 = diagram; SEMICOLON; d2 = diagram   {Composition(d1, d2)}
   | e=diagram;    BAR;  f = diagram         {Tensor (e,f)}
 
-
 module_def :
   | MODULE; m_name = STRING; OPEN_BRACE; b_list = separated_list(DOT,morphism_def);
     LINK; w_list = separated_list(COMMA,wire_def); DOT;
@@ -51,8 +50,7 @@ module_def :
 
 definition:
   | m_list = separated_list(DOT,morphism_def);
-    LINK; w_list = separated_list(COMMA,wire_def); DOT;
-    d = diagram;                            {Diagram(m_list, w_list, d)}
+    LINK; w_list = separated_list(COMMA,wire_def); DOT;                 {Definition(m_list, w_list)}
 
 top:
-  | module_list = list(module_def); definition_list = list(definition); EOF  {Program(module_list, definition_list)}
+  | module_list = list(module_def); definition_list = list(definition); DOT; d = diagram; EOF  {Program(module_list, definition_list,d )}

@@ -17,10 +17,10 @@ type module_def =
   | Module of string * box list * wire list * diagram
 
 type definition =
-  | Diagram of box list * wire list  * diagram
+  | Definition of box list * wire list
 
 type program =
-  | Program of module_def list * definition list
+  | Program of module_def list * definition list * diagram
 
 (* Pretty printing for the AST *)
 let rec string_of_diagram = function
@@ -30,8 +30,5 @@ let rec string_of_diagram = function
   | Composition (f,g)       -> "Composition(" ^ (string_of_diagram f) ^ "," ^ (string_of_diagram g) ^"  )"
   | Subdiagram (diagram', ins, outs) -> string_of_diagram diagram'
 
-let string_of_definition = function
-  | Diagram (b_list, w_list, diagram) -> string_of_diagram diagram
-
 let string_of_top = function
-  | Program(module_list, diagram_list) -> List.fold_left (^) "" (List.map string_of_definition diagram_list)
+  | Program(module_list, diagram_list, diagram') -> string_of_diagram diagram'
