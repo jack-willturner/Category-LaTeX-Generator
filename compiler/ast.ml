@@ -8,7 +8,7 @@ type wire =
 (* AST for string-diagrams *)
 type diagram =
   | Identity
-  | Morphism of string * string list * string list
+  | Morphism of string * string list option * string list option
   | Tensor of diagram * diagram
   | Composition of diagram * diagram
   | Subdiagram of diagram * int * int  (* ins and outs *)

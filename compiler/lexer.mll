@@ -19,7 +19,7 @@ let newline = "\r" | "\n" | "\r\n"
 
 let digit = ['0'-'9']
 let letter = ['a'-'z' 'A'-'Z']
-let id = letter+ digit*
+let id = (['a'-'z'] | ['A'-'Z'] | '_' | ['0'-'9']) (['a'-'z'] | ['A'-'Z'] | '_' | ['0'-'9'])*
 
 rule read =
 	parse
@@ -30,6 +30,10 @@ rule read =
 	| '+'                           {TENSOR}
 	| '.'    												{DOT}
 	| ','														{COMMA}
+	| '{'														{OPEN_BRACE}
+	| '}'														{CLOSE_BRACE}
+	| '['														{OPEN_SQUARE}
+	| ']'														{CLOSE_SQUARE}
 	| ';'														{SEMICOLON}
 	| '|'														{BAR}
 	| ':'														{COLON}
@@ -37,10 +41,10 @@ rule read =
 	| "box"			                    {BOX}
 	| "link"                      	{LINK}
 	| "in" 													{INPUTS}
-	| "out"													{OUTPUTS}
-	| "-1-"														{IDENTITY}
-	| digit													{INT (int_of_string (Lexing.lexeme lexbuf))}
+	| "module"											{MODULE}
+	| "-1-"													{IDENTITY}
 	| id 	 	  											{STRING (Lexing.lexeme lexbuf)}
+	| digit													{INT (int_of_string (Lexing.lexeme lexbuf))}
 	| eof														{EOF}
 	| _ 		  		 									{ raise (SyntaxError ("Unexpected char: " ^
 									 									Lexing.lexeme lexbuf)) }

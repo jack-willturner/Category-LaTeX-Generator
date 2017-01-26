@@ -6,20 +6,20 @@
 %token  <string>  STRING
 %token  <int>     INT
 
-(***** TOKENS *****)
+(****** TOKENS ******)
 %token IDENTITY
 %token TENSOR
 %token OPEN_SQUARE CLOSE_SQUARE
 %token OPEN_BRACE CLOSE_BRACE
 %token BOX LINK
 %token MODULE
-%token DOT COMMA BAR COLON ARROW SEMICOLON EQUAL
-%token BOXCOLOUR BOXSHAPE
-%token INPUTS OUTPUTS
+%token DOT COMMA BAR COLON ARROW SEMICOLON
+%token INPUTS
 %token EOF
 
 (***** PRECEDENCE RULES *****)
-%left  TENSOR
+%left  BAR
+%left  SEMICOLON
 
 (***** PARSING RULES *****)
 %start <Ast.program> top
@@ -27,33 +27,30 @@
 
 morphism_def:
   | BOX; morphism_id = STRING; COLON;
-     inputs=INT; ARROW; outputs=INT;
+     inputs=STRING; ARROW; outputs=STRING;
 
-    {Box(morphism_id, inputs, outputs)}
-
+    {Box(morphism_id, (int_of_string inputs), (int_of_string outputs))}
 
 wire_def:
   | from_exp = STRING; to_exp = STRING;   {Wire(from_exp, to_exp)}
 
+params:
+  | OPEN_SQUARE; params = separated_list(COMMA, STRING); CLOSE_SQUARE;     {params}
 
 diagram:
   | IDENTITY                                {Identity}
-  | d1 = diagram; SEMICOLON; d2 = diagram
-    {Composition(d1, d2)}
-  | e=diagram;    TENSOR;  f = diagram      {Tensor (e,f)}
-  | option(OPEN_SQUARE); ins = separated_list(COMMA, STRING); option(CLOSE_SQUARE);
-    morphID = STRING;
-    option(OPEN_SQUARE); outs = separated_list(COMMA,STRING); option(CLOSE_SQUARE);
+  | ins = option(params); morphID = STRING; outs = option(params)  {Morphism(morphID, ins, outs)}
+  | d1 = diagram; SEMICOLON; d2 = diagram   {Composition(d1, d2)}
+  | e=diagram;    BAR;  f = diagram         {Tensor (e,f)}
 
-    {Morphism(morphID, ins, outs)}
 
 module_def :
-  | MODULE; m_name = STRING; OPEN_BRACE; b_list = separated_list(DOT,morphism_def); SEMICOLON;
+  | MODULE; m_name = STRING; OPEN_BRACE; b_list = separated_list(DOT,morphism_def);
     LINK; w_list = separated_list(COMMA,wire_def); DOT;
     d = diagram; CLOSE_BRACE;               {Module(m_name, b_list, w_list, d)}
 
 definition:
-  | m_list = separated_list(DOT,morphism_def); SEMICOLON;
+  | m_list = separated_list(DOT,morphism_def);
     LINK; w_list = separated_list(COMMA,wire_def); DOT;
     d = diagram;                            {Diagram(m_list, w_list, d)}
 
