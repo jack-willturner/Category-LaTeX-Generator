@@ -13,6 +13,7 @@
 %token OPEN_BRACE CLOSE_BRACE
 %token BOX LINK
 %token MODULE
+%token BOXSHAPE BOXCOLOUR
 %token DOT COMMA BAR COLON ARROW SEMICOLON
 %token INPUTS
 %token EOF
@@ -25,11 +26,18 @@
 %start <Ast.program> top
 %%
 
+
+styling:
+  | OPEN_BRACE;  BOXCOLOUR; COLON; bcolour = option(STRING); SEMICOLON;
+                 BOXSHAPE;  COLON; bshape = option(STRING);
+    CLOSE_BRACE;
+    {(bcolour, bshape)}
+
 morphism_def:
-  | BOX; morphism_id = STRING; COLON;
+  | BOX; morphism_id = STRING; boxstyle = option(styling); COLON;
      inputs=STRING; ARROW; outputs=STRING;
 
-    {Box(morphism_id, (int_of_string inputs), (int_of_string outputs))}
+    {Box(morphism_id, (int_of_string inputs), (int_of_string outputs), boxstyle)}
 
 wire_def:
   | from_exp = STRING; to_exp = STRING;   {Wire(from_exp, to_exp)}
@@ -50,7 +58,7 @@ module_def :
 
 definition:
   | m_list = separated_list(DOT,morphism_def);
-    LINK; w_list = separated_list(COMMA,wire_def); DOT;                 {Definition(m_list, w_list)}
+    LINK; w_list = separated_list(COMMA,wire_def)                 {Definition(m_list, w_list)}
 
 top:
   | module_list = list(module_def); definition_list = list(definition); DOT; d = diagram; EOF  {Program(module_list, definition_list,d )}

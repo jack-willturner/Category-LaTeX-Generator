@@ -1,6 +1,6 @@
 
 type box =
-  | Box of string * int * int         (* Name, input and output ports *)
+  | Box of string * int * int * (string option * string option) option  (* Name, input and output ports *)
 
 type wire =
   | Wire of string * string     (* wire_id, from_exp, from_port, to_exp, to_port *)
