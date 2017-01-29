@@ -1,4 +1,3 @@
-
 type box =
   | Box of string * int * int * (string option * string option) option  (* Name, input and output ports *)
 
