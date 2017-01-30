@@ -15,8 +15,9 @@ open Printf
 
 (* First, set up a hashtable of morphisms *)
 let morphisms         = Hashtbl.create 64         (* f : 1 -> 3 :: f | 1,3 *)
-let morphismLocations = Hashtbl.create 64 (* f | x, y *)
+let morphismLocations = Hashtbl.create 64         (* f | x, y *)
 let nodes             = Hashtbl.create 64
+let links             = Hashtbl.create 64
 let temporary = Buffer.create  64
 
 let hiddenNodeCount = ref 0
@@ -44,11 +45,6 @@ let rec update_morphism_table = function
   | (Box(name, ins, outs, _)::xs) ->
           Hashtbl.add morphisms name (ins,outs);
           update_morphism_table xs
-
-let rec draw_wires = function
-  | [] -> ""
-  | (Wire(from_, to_)::xs) ->
-          "\t\\draw [black] (" ^ from_ ^ ".east) -- (" ^ to_ ^ ".west);\n" ^ (draw_wires xs)
 
 let rec type_inputs = function
   | []        -> []
@@ -180,16 +176,16 @@ let rec draw_structurally x y tree =
         "\t\\draw [black] (" ^ empty_left ^ ".east) -- (" ^ empty_right ^ ".west);\n"
     | Morphism(m, None, None)       ->
         let (num_inputs,num_outputs)  = Hashtbl.find morphisms m in
-        let morph = draw_morphism m x y in
-        let inputs = generate_none_inputs num_inputs x y in
+        let morph   = draw_morphism m x y in
+        let inputs  = generate_none_inputs num_inputs x y in
         let outputs = generate_none_outputs num_outputs x y in
         Hashtbl.add morphismLocations m ((x+1), y);
         inputs ^ morph ^ outputs
     | Morphism(m, Some(ins), None)  ->
         (* ins is in the style [1,x,2] -- signalling 4 inputs *)
         let (num_inputs, num_outputs) = Hashtbl.find morphisms m in
-        let morph = draw_morphism m x y in
-        let inputs = generate_some_inputs ins x y  in
+        let morph   = draw_morphism m x y in
+        let inputs  = generate_some_inputs ins x y  in
         let outputs = generate_none_outputs num_outputs x y in
         Hashtbl.add morphismLocations m ((x+1), y);
         inputs ^ morph ^ outputs
@@ -202,9 +198,6 @@ let rec draw_structurally x y tree =
         inputs ^ morph ^ outputs
     | Morphism (m,Some(inputs), Some(outputs)) -> failwith "not implemented3"
     | Tensor(a,b)               ->
-        (*  |_|--------|_a_|--------|_|   *)
-        (*                                *)
-        (*  |_|--------|_b_|--------|_|   *)
         let a' = draw_structurally x y a in
         let b' = draw_structurally x (y-2) b in
         a' ^ b'
@@ -215,9 +208,14 @@ let rec draw_structurally x y tree =
     | Subdiagram(diagram,ins,outs) ->
         draw_structurally x y diagram
 
+let tup = function
+  | Wire(inp, outp) -> (inp,outp)
+
 let unwrap_def_list = function
   | [] -> []
-  | (Definition(b_list, w_list)::xs) -> b_list (* we can discard the tail *)
+  | (Definition(b_list, w_list)::xs) ->
+      List.map (fun f wire -> let (inp, outp) = tup wire in Hashtbl.add links outp inp) w_list;
+      b_list (* we can discard the tail *)
 
 let compile_program = function
   | Program(module_list, def_list, diag) ->

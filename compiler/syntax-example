@@ -1,6 +1,6 @@
 box f : 1 -> 2.
 box g : 2 -> 1
-link x y. f[x,1] ; [1,y]g
+link . (f | g) ; (h | i)
 
 (*
 STAGE 1:
