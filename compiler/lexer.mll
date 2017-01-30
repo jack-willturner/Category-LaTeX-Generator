@@ -34,6 +34,8 @@ rule read =
 	| '}'														{CLOSE_BRACE}
 	| '['														{OPEN_SQUARE}
 	| ']'														{CLOSE_SQUARE}
+	| '('														{OPEN_BRACKET}
+	| ')'														{CLOSE_BRACKET}
 	| ';'														{SEMICOLON}
 	| '|'														{BAR}
 	| ':'														{COLON}

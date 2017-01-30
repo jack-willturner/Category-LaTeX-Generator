@@ -10,7 +10,7 @@ type diagram =
   | Morphism of string * string list option * string list option
   | Tensor of diagram * diagram
   | Composition of diagram * diagram
-  | Subdiagram of diagram * int * int  (* ins and outs *)
+  | Subdiagram of diagram * int * int  (* inputs and outputs *)
 
 type module_def =
   | Module of string * box list * wire list * diagram

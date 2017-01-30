@@ -11,6 +11,7 @@
 %token TENSOR
 %token OPEN_SQUARE CLOSE_SQUARE
 %token OPEN_BRACE CLOSE_BRACE
+%token OPEN_BRACKET CLOSE_BRACKET
 %token BOX LINK
 %token MODULE
 %token BOXSHAPE BOXCOLOUR
@@ -19,8 +20,9 @@
 %token EOF
 
 (***** PRECEDENCE RULES *****)
-%left  BAR
-%left  SEMICOLON
+%left BAR
+%left SEMICOLON
+%left OPEN_BRACKET
 
 (***** PARSING RULES *****)
 %start <Ast.program> top
