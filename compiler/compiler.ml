@@ -34,6 +34,8 @@ type port =
   | Number of int
   | String of string
 
+type point = Point of (int * int)
+
 let prefix = "\n\n\\tikzstyle{morphism}=[minimum size = 1.25cm,right=10mm, rectangle, draw=black, fill=white, thick]
 \\tikzstyle{empty}   =[circle, draw=white, fill=white, thick]\n
 \\begin{tikzpicture}\n"
@@ -43,7 +45,7 @@ let suffix  = "\\end {tikzpicture}\n\n"
 let rec update_morphism_table = function
   | []        -> ()
   | (Box(name, ins, outs, _)::xs) ->
-          Hashtbl.add morphisms name (ins,outs);
+          Hashtbl.add morphisms name (Point(ins,outs));
           update_morphism_table xs
 
 let rec type_inputs = function
@@ -52,6 +54,18 @@ let rec type_inputs = function
                  with
                   | Failure int_of_string -> (String x) :: (type_inputs xs)
 
+
+
+(* Function that takes 4 points, x y, x' y' and draws a line and then a rectangle between them. Then returns a list
+   of morphisms in that space *)
+let intersects Point(ax,ay) Point(ax',ay') Point(bx, by) Point(bx',by') =
+  ax <= bx' && ax' >= bx &&
+  ay <= by' && ay' >= by
+
+
+Hashtbl.fold (if (intersects Point(x,y) Point(x',y') then s)
+
+(* Start by connecting two morphisms *)
 let rec connect port_x port_y node_name =
   let (node_x, node_y) = Hashtbl.find nodes node_name in
   "\\draw [black] (" ^ port_x ^ "," ^ port_y ^ ") -- (" ^ node_x ^ "," ^ node_y ^ ");\n"
@@ -92,7 +106,7 @@ let rec generate_some_inputs input_list x y =
                 let (to_x', to_y') = Hashtbl.find nodes s in
                 "\t\\draw[black] \t(" ^ from_x ^","^ from_y ^ ") -- (" ^ to_x' ^ "," ^  to_y' ^ ");\n" |> Buffer.add_string temporary
               else
-                Hashtbl.add nodes s (to_x, to_y);
+                Hashtbl.add nodes s (Point(to_x, to_y));
                 "\t\\draw[black] \t(" ^ from_x ^","^ from_y ^ ") -- (" ^ to_x ^ "," ^  to_y ^ ");\n" |> Buffer.add_string temporary
           )
         done;
@@ -123,7 +137,7 @@ let rec generate_some_outputs input_list x y =
                 let (to_x', to_y') = Hashtbl.find nodes s in
                 "\t\\draw[black] \t(" ^ from_x ^","^ from_y ^ ") -- (" ^ to_x' ^ "," ^  to_y' ^ ");\n" |> Buffer.add_string temporary
               else
-                Hashtbl.add nodes s (to_x, to_y);
+                Hashtbl.add nodes s (Point(to_x, to_y));
                 "\t\\draw[black] \t(" ^ from_x ^","^ from_y ^ ") -- (" ^ to_x ^ "," ^  to_y ^ ");\n" |> Buffer.add_string temporary
           )
         done;
@@ -162,7 +176,7 @@ let generate_none_outputs num_outputs x y =
   wire_drawing
 
 let draw_morphism m x y =
-  ("\t\\node[morphism] (" ^ m ^ ")\tat (" ^ (x+1|>string_of_int) ^ "," ^ (y|>string_of_int) ^ ")\t\t{$" ^ m ^"$};\n\n")
+  ("\t\\node[" ^ m ^ "] (" ^ m ^ ")\tat (" ^ (x+1|>string_of_int) ^ "," ^ (y|>string_of_int) ^ ")\t\t{$" ^ m ^"$};\n\n")
 
 let rec draw_structurally x y tree =
   (* Create a grid of max_width * max_height *)
@@ -179,7 +193,7 @@ let rec draw_structurally x y tree =
         let morph   = draw_morphism m x y in
         let inputs  = generate_none_inputs num_inputs x y in
         let outputs = generate_none_outputs num_outputs x y in
-        Hashtbl.add morphismLocations m ((x+1), y);
+        Hashtbl.add morphismLocations m (Point((x+1), y));
         inputs ^ morph ^ outputs
     | Morphism(m, Some(ins), None)  ->
         (* ins is in the style [1,x,2] -- signalling 4 inputs *)
@@ -187,14 +201,14 @@ let rec draw_structurally x y tree =
         let morph   = draw_morphism m x y in
         let inputs  = generate_some_inputs ins x y  in
         let outputs = generate_none_outputs num_outputs x y in
-        Hashtbl.add morphismLocations m ((x+1), y);
+        Hashtbl.add morphismLocations m (Point((x+1), y));
         inputs ^ morph ^ outputs
     | Morphism(m, None, Some(outs)) ->
         let (num_inputs, num_outputs) = Hashtbl.find morphisms m in
         let morph = draw_morphism m x y in
         let inputs = generate_none_inputs num_inputs x y in
         let outputs = generate_some_outputs outs x y in
-        Hashtbl.add morphismLocations m ((x+1), y);
+        Hashtbl.add morphismLocations m (Point((x+1), y));
         inputs ^ morph ^ outputs
     | Morphism (m,Some(inputs), Some(outputs)) -> failwith "not implemented3"
     | Tensor(a,b)               ->
@@ -217,8 +231,27 @@ let unwrap_def_list = function
       List.map (fun f wire -> let (inp, outp) = tup wire in Hashtbl.add links outp inp) w_list;
       b_list (* we can discard the tail *)
 
+let add_styles (Box b, _, _, shape, colour) =
+  Buffer.add_string temporary "\tikzstyle{" ^ b ^ "} = [minimum size = 1.25cm, right = 10mm, thick ";
+  (match shape with
+    | None -> ",rectangle" |> Buffer.add_string temporary
+    | Some("CIRCLE") -> ",circle" |> Buffer.add_string temporary);
+  (match colour with
+    | None -> ",draw=black, fill=white]"|> Buffer.add_string temporary
+    | Some("BLACK") -> ",draw=black, fill=black]"|> Buffer.add_string temporary
+    | Some("RED")   -> ",draw=red, fill=blue]"|> Buffer.add_string temporary
+    | Some("BLUE")  -> ",draw=blue, fill=blue]"|> Buffer.add_string temporary);
+  let styles = Buffer.contents temporary in
+  Buffer.clear temporary;
+  styles
+
+(*
+let extract_boxes =
+*)
 let compile_program = function
   | Program(module_list, def_list, diag) ->
+          (* extract all boxes |> add_styles *)
+
           update_morphism_table (unwrap_def_list def_list);
           let body = (draw_structurally 0 0 diag)  in
           let whole = prefix ^ body ^ suffix in

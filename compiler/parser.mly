@@ -48,10 +48,11 @@ params:
   | OPEN_SQUARE; params = separated_list(COMMA, STRING); CLOSE_SQUARE;     {params}
 
 diagram:
-  | IDENTITY                                {Identity}
+  | IDENTITY                                                       {Identity}
   | ins = option(params); morphID = STRING; outs = option(params)  {Morphism(morphID, ins, outs)}
-  | d1 = diagram; SEMICOLON; d2 = diagram   {Composition(d1, d2)}
-  | e=diagram;    BAR;  f = diagram         {Tensor (e,f)}
+  | OPEN_BRACKET; d = diagram; CLOSE_BRACKET;                      {d}
+  | d1 = diagram; SEMICOLON; d2 = diagram                          {Composition(d1, d2)}
+  | e=diagram;    BAR;  f = diagram                                {Tensor (e,f)}
 
 module_def :
   | MODULE; m_name = STRING; OPEN_BRACE; b_list = separated_list(DOT,morphism_def);

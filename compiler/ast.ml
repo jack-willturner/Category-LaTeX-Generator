@@ -25,7 +25,7 @@ type program =
 let rec string_of_diagram = function
   | Identity                         -> "Identity"
   | Morphism (m, ins, outs)          -> m
-  | Tensor (f,g)                     -> string_of_diagram f ^ string_of_diagram g
+  | Tensor (f,g)                     -> "Tensor(" ^ string_of_diagram f ^ ", " ^ string_of_diagram g ^ ")"
   | Composition (f,g)                -> "Composition(" ^ (string_of_diagram f) ^ "," ^ (string_of_diagram g) ^"  )"
   | Subdiagram (diagram', ins, outs) -> string_of_diagram diagram'
 
