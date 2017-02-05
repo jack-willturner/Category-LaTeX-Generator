@@ -18,6 +18,8 @@ type module_def =
 type definition =
   | Definition of box list * wire list
 
+type pnt = Point of (int * int)
+
 type program =
   | Program of module_def list * definition list * diagram
 

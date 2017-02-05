@@ -1,7 +1,7 @@
 box f : 1 -> 2.
 box g : 2 -> 1.
 box h : 1 -> 3
-link x y. (f | g) ; (f | g)
+link x y. (f | f) ; (g | g) ; g
 
 (*
 STAGE 1:
@@ -30,10 +30,4 @@ STAGE 3:
           |
           -----[h]-----
 
-
-box f : 1 -> 2.
-box g : 1 -> 1.
-box h : 1 -> 1;
-link x a, y b.
-out x y. f | in a b. (g + h)
 *)
