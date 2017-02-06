@@ -3,22 +3,13 @@ open Hashtbl
 open Buffer
 open Printf
 
-
-(* Algorithm outline *)
-
-(* PREPROCESSOR: Generate styles for boxes, number all occurrences of boxes  *)
-(* STEP 1: Create Hashtbl of boxes with a list of their inputs and outputs   *)
-(* STEP 2: Replace all of the inputs and outputs according to labelled wires *)
-(* STEP 3: Create Hashtbl of wires to link to each other                     *)
-(* STEP 4: Draw boxes structurally                                           *)
-(* STEP 5: Connect wires                                                     *)
-
 (* First, set up a hashtable of morphisms *)
-let morphisms         = Hashtbl.create 64         (* f : 1 -> 3 :: f | 1,3 *)
-let morphismLocations = Hashtbl.create 64         (* f | x, y *)
-let nodes             = Hashtbl.create 64
-let links             = Hashtbl.create 64
-let temporary = Buffer.create  64
+let morphisms         = Hashtbl.create 64         (* f : 1 -> 3 :: f | 1,3 - symbol table *)
+let links             = Hashtbl.create 64         (* symbol table for links *)
+let morphismLocations = Hashtbl.create 64         (* f | Point(x, y) *)
+let nodes             = Hashtbl.create 64         (* essentially link locations *)
+let temporary         = Buffer.create  64         (* temporary Buffer *)
+
 
 let hiddenNodeCount = ref 0
 let morphismCount   = ref 100 (* extremely hacky - but reasonable to assume we will never have more than 99 nodes in a diagram given project scale*)
@@ -50,18 +41,34 @@ let rec type_inputs = function
                  with
                   | Failure int_of_string -> (String x) :: (type_inputs xs)
 
-
-
 (* Function that takes 4 points, x y, x' y' and draws a line and then a rectangle between them. Then returns a list
    of morphisms in that space *)
-let intersects (Point(ax,ay)) (Point(ax',ay')) (Point(bx, by)) (Point(bx',by')) =
+let intersect (Point(ax,ay)) (Point(ax',ay')) (Point(bx, by)) (Point(bx',by')) =
   ax <= bx' && ax' >= bx &&
   ay <= by' && ay' >= by
 
+let intersects src dest list_of_morphs = match list_of_morphs with
+  | []                      -> []
+  | (name, (Point(x,y))::xs - > if intersect src dest (Point(x,y)) (Point(x+.1.25, y+1.25))
+                                then (name, Point(x,y)) ::(intersects src dest xs)
+                                else intersects src dest xs
+
+let get_coords (Point(x,y)) = (x,y)
+
+let draw src dest =
+  (* iterate through hshtbl mLocs - return list of intersections *)
+  let l_intersects = intersects src dest (Hashtbl.fold (fun k v acc -> (k, v) :: acc) morphismLocations []) in
+  match l_intersects with
+    | []                      ->  "\\draw [black] (" ^ port_x ^ "," ^ port_y ^ ") -- (" ^ node_x ^ "," ^ node_y ^ ");\n"
+    | (name, Point(x,y))::xs  -> (* get max and minimum y of the list *)
+                          let (from_x, from_y) = get_coords src in
+                          let (to_x, to_y) = get_coords dest in
+                          let max_y = y in
+                          "\\draw[black, rounded corners = 8pt] (" ^ from_x |> string_of_float ^ "," ^ from_y |>string_of_float ^ ") -- (" ^
+                              (from_x+.1.0) |> string_of_float ^ "," ^ max_y |> string_of_float ^ ") -- (" ^ (to_x-.1.0) |> string_of_float ^ "," ^ max_y |> string_of_float ^ ") -- (" ^ to_x |> string_of_float ^ "," ^ to_y |> string_of_float ^ ")\n"
+
 (* Start by connecting two morphisms *)
-let rec connect port_x port_y node_name =
-  let (node_x, node_y) = Hashtbl.find nodes node_name in
-  "\\draw [black] (" ^ port_x ^ "," ^ port_y ^ ") -- (" ^ node_x ^ "," ^ node_y ^ ");\n"
+let rec connect =
 
 let rec ones = function
   | 0 -> []
