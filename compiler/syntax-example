@@ -1,7 +1,7 @@
 box f : 1 -> 2.
-box g : 2 -> 1.
-box h : 1 -> 3
-link x y. (f | f) ; (g | g) ; g
+box g : 1 -> 1.
+box h : 1 -> 1
+link . f ; f ; f ; f ; f ; f
 
 (*
 STAGE 1:

@@ -10,6 +10,7 @@ let morphismLocations = Hashtbl.create 64         (* f | Point(x, y) *)
 let nodes             = Hashtbl.create 64         (* essentially link locations *)
 let temporary         = Buffer.create  64         (* temporary Buffer *)
 
+let height = 1.25
 
 let hiddenNodeCount = ref 0
 let morphismCount   = ref 100 (* extremely hacky - but reasonable to assume we will never have more than 99 nodes in a diagram given project scale*)
@@ -32,7 +33,7 @@ let suffix  = "\\end {tikzpicture}\n\n"
 let rec update_morphism_table = function
   | []        -> ()
   | (Box(name, ins, outs, _)::xs) ->
-          Hashtbl.add morphisms name (Point(ins,outs));
+          Hashtbl.add morphisms name (ins, outs);
           update_morphism_table xs
 
 let rec type_inputs = function
@@ -47,9 +48,9 @@ let intersect (Point(ax,ay)) (Point(ax',ay')) (Point(bx, by)) (Point(bx',by')) =
   ax <= bx' && ax' >= bx &&
   ay <= by' && ay' >= by
 
-let intersects src dest list_of_morphs = match list_of_morphs with
+let rec intersects src dest list_of_morphs = match list_of_morphs with
   | []                      -> []
-  | (name, (Point(x,y))::xs - > if intersect src dest (Point(x,y)) (Point(x+.1.25, y+1.25))
+  | ((name, Point(x,y))::xs) -> if intersect src dest (Point(x,y)) (Point(x+.1.25, y+.1.25))
                                 then (name, Point(x,y)) ::(intersects src dest xs)
                                 else intersects src dest xs
 
@@ -58,17 +59,20 @@ let get_coords (Point(x,y)) = (x,y)
 let draw src dest =
   (* iterate through hshtbl mLocs - return list of intersections *)
   let l_intersects = intersects src dest (Hashtbl.fold (fun k v acc -> (k, v) :: acc) morphismLocations []) in
-  match l_intersects with
-    | []                      ->  "\\draw [black] (" ^ port_x ^ "," ^ port_y ^ ") -- (" ^ node_x ^ "," ^ node_y ^ ");\n"
+  let (port_x, port_y) = get_coords src in
+  let (node_x, node_y) = get_coords dest in
+  (match l_intersects with
+    | []                      ->  "\\draw [black] (" ^ (port_x -. 0.5 |> string_of_float) ^ "," ^ (port_y |> string_of_float) ^ ") -- (" ^ (node_x |> string_of_float) ^ "," ^ (node_y |> string_of_float) ^ ");\n"
     | (name, Point(x,y))::xs  -> (* get max and minimum y of the list *)
                           let (from_x, from_y) = get_coords src in
                           let (to_x, to_y) = get_coords dest in
                           let max_y = y in
-                          "\\draw[black, rounded corners = 8pt] (" ^ from_x |> string_of_float ^ "," ^ from_y |>string_of_float ^ ") -- (" ^
-                              (from_x+.1.0) |> string_of_float ^ "," ^ max_y |> string_of_float ^ ") -- (" ^ (to_x-.1.0) |> string_of_float ^ "," ^ max_y |> string_of_float ^ ") -- (" ^ to_x |> string_of_float ^ "," ^ to_y |> string_of_float ^ ")\n"
+                          "\\draw[black, rounded corners = 8pt] (" ^ (from_x |> string_of_float) ^ "," ^ (from_y |>string_of_float) ^ ") -- (" ^
+                              ((from_x+.1.0) |> string_of_float) ^ "," ^ (max_y |> string_of_float) ^ ") -- (" ^ ((to_x-.1.0) |> string_of_float) ^ "," ^ (max_y |> string_of_float) ^ ") -- (" ^ (to_x |> string_of_float) ^ "," ^ (to_y |> string_of_float) ^ ")\n")
 
-(* Start by connecting two morphisms *)
-let rec connect =
+let rec connect = function
+    | []              -> ""
+    | (outp, inp)::xs -> draw outp inp ^ connect xs
 
 let rec ones = function
   | 0 -> []
@@ -89,14 +93,13 @@ let rec generate_some_inputs input_list x y =
     | xs ->
         let flat_list = flatten_port_list xs in
         let num_inputs = List.length flat_list in
-        let height  = 1.25 in (* Where 0.55 and -0.55 are the bounds of a box *)
         let spacing = height /. float (num_inputs + 1) in
-        let base = float(y) -. (height/.float(2)) in
+        let base = y -. (height/.float(2)) in
         for i = 0 to (List.length flat_list - 1) do
           let curr_input = List.nth flat_list i in
-          let from_x = float (x) +.1.5 |> string_of_float in
-          let from_y = base +. float (i+1) *. spacing |> string_of_float in
-          let to_x = x + 2 |> string_of_int in
+          let from_x = x +.(height *. 1.2) |> string_of_float in
+          let from_y = base +. float (i) +. (height *. 0.8) *. spacing |> string_of_float in
+          let to_x = x +. (height *. 1.6) |> string_of_float in
           let to_y = from_y in
           ( match curr_input with
             | Number n ->
@@ -104,9 +107,9 @@ let rec generate_some_inputs input_list x y =
             | String s ->
               if Hashtbl.mem nodes s then
                 let (to_x', to_y') = Hashtbl.find nodes s in
-                "\t\\draw[black] \t(" ^ from_x ^","^ from_y ^ ") -- (" ^ to_x' ^ "," ^  to_y' ^ ");\n" |> Buffer.add_string temporary
+                "\t\\draw[black] \t(" ^ from_x ^","^ from_y ^ ") -- (" ^ (to_x' |> string_of_float) ^ "," ^  (to_y'|>string_of_float) ^ ");\n" |> Buffer.add_string temporary
               else
-                Hashtbl.add nodes s (to_x, to_y);
+                Hashtbl.add nodes s ((to_x |> float_of_string), (to_y|> float_of_string));
                 "\t\\draw[black] \t(" ^ from_x ^","^ from_y ^ ") -- (" ^ to_x ^ "," ^  to_y ^ ");\n" |> Buffer.add_string temporary
           )
         done;
@@ -120,14 +123,13 @@ let rec generate_some_outputs input_list x y =
     | xs ->
         let flat_list = flatten_port_list xs in
         let num_outputs = List.length flat_list in
-        let height  = 1.25 in (* Where 0.55 and -0.55 are the bounds of a box *)
         let spacing = height /. float (num_outputs + 1) in
-        let base = float(y) -. (height/.float(2)) in
+        let base = y -. (height/.float(2)) in
         for i = 0 to (List.length flat_list - 1) do
           let curr_input = List.nth flat_list i in
-          let from_x = float(x + 2) +.height |> string_of_float in
+          let from_x = (x +. (height *. 1.6)) +.height |> string_of_float in
           let from_y = base +. float (i+1) *. spacing |> string_of_float in
-          let to_x = float(x + 1) +. height +. height |> string_of_float in
+          let to_x = (x +. (height *. 0.8)) +. height +. height |> string_of_float in
           let to_y = from_y in
           ( match curr_input with
             | Number n ->
@@ -135,9 +137,9 @@ let rec generate_some_outputs input_list x y =
             | String s ->
               if Hashtbl.mem nodes s then
                 let (to_x', to_y') = Hashtbl.find nodes s in
-                "\t\\draw[black] \t(" ^ from_x ^","^ from_y ^ ") -- (" ^ to_x' ^ "," ^  to_y' ^ ");\n" |> Buffer.add_string temporary
+                "\t\\draw[black] \t(" ^ from_x ^","^ from_y ^ ") -- (" ^ (to_x'|> string_of_float) ^ "," ^  (to_y'|> string_of_float) ^ ");\n" |> Buffer.add_string temporary
               else
-                Hashtbl.add nodes s (to_x, to_y);
+                Hashtbl.add nodes s (to_x |> float_of_string, to_y |> float_of_string);
                 "\t\\draw[black] \t(" ^ from_x ^","^ from_y ^ ") -- (" ^ to_x ^ "," ^  to_y ^ ");\n" |> Buffer.add_string temporary
           )
         done;
@@ -146,13 +148,12 @@ let rec generate_some_outputs input_list x y =
         some_outputs
 
 let generate_none_inputs num_inputs x y  =
-  let height  = 1.25 in (* Where 0.55 and -0.55 are the bounds of a box *)
   let spacing = height /. float (num_inputs + 1) in
-  let base = float(y) -. (height/.float(2)) in
+  let base = y -. (height/.float(2)) in
   for i = 1 to (num_inputs ) do
-    let from_x = x+1 |> string_of_int in
+    let from_x = x+.1.0 |> string_of_float in
     let from_y = base +. float i *. spacing |> string_of_float in
-    let to_x = x + 2 |> string_of_int in
+    let to_x = x +. 2.0 |> string_of_float in
     let to_y = from_y in
     "\t\\draw[black] \t(" ^ from_x ^","^ from_y ^ ") -- (" ^ to_x ^ "," ^  to_y ^ ");\n" |> Buffer.add_string temporary
   done;
@@ -161,13 +162,12 @@ let generate_none_inputs num_inputs x y  =
   wire_drawing
 
 let generate_none_outputs num_outputs x y =
-  let height  = 1.25 in (* Where 0.55 and -0.55 are the bounds of a box *)
-  let base = float(y) -. (height/.float(2)) in
+  let base = y -. (height/.float(2)) in
   let spacing' = height /. (float(num_outputs + 1)) in
   for i = 1 to (num_outputs) do
-    let from_x = float(x + 2) +.height |> string_of_float in
+    let from_x = (x +. 2.0) +. height |> string_of_float in
     let from_y = base +. float i *. spacing' |> string_of_float in
-    let to_x = float(x + 1) +. height +. height |> string_of_float in
+    let to_x = (x +. 1.0) +. height +. height |> string_of_float in
     let to_y = from_y in
     "\t\\draw[black] \t(" ^ from_x ^","^ from_y ^ ") -- (" ^ to_x ^ "," ^  to_y ^ ");\n" |> Buffer.add_string temporary
   done;
@@ -175,8 +175,14 @@ let generate_none_outputs num_outputs x y =
   Buffer.clear temporary;
   wire_drawing
 
+let rec width = function
+  | Identity  -> 2.0
+  | Morphism(m, _, _) -> 3.25
+  | Tensor(a,b) -> max (width a) (width b)
+  | Composition(a,b) -> width a +. width b
+
 let draw_morphism m x y =
-  ("\t\\node[morphism] (" ^ m ^ ")\tat (" ^ (x+1|>string_of_int) ^ "," ^ (y|>string_of_int) ^ ")\t\t{$" ^ m ^"$};\n\n")
+  ("\t\\node[morphism] (" ^ m ^ ")\tat (" ^ (x+.1.0|>string_of_float) ^ "," ^ (y|>string_of_float) ^ ")\t\t{$" ^ m ^"$};\n\n")
 
 let rec draw_structurally x y tree =
   (* Create a grid of max_width * max_height *)
@@ -185,39 +191,39 @@ let rec draw_structurally x y tree =
     | Identity                  ->
         let empty_left = hiddenNode() in
         let empty_right = hiddenNode() in
-        "\t\\node (" ^ empty_left  ^ ")\tat (" ^ (x |> string_of_int) ^ "," ^ (y |> string_of_int) ^ ")\t\t{}\n" ^
-        "\t\\node (" ^ empty_right ^ ")\tat (" ^ ((x+2)|>string_of_int) ^ "," ^ (y|>string_of_int) ^ ")\t\t{}\n" ^
+        "\t\\node (" ^ empty_left  ^ ")\tat (" ^ (x |> string_of_float) ^ "," ^ (y |> string_of_float) ^ ")\t\t{}\n" ^
+        "\t\\node (" ^ empty_right ^ ")\tat (" ^ ((x+.2.0)|>string_of_float) ^ "," ^ (y|>string_of_float) ^ ")\t\t{}\n" ^
         "\t\\draw [black] (" ^ empty_left ^ ".east) -- (" ^ empty_right ^ ".west);\n"
     | Morphism(m, None, None)       ->
-        let (Point(num_inputs,num_outputs))  = Hashtbl.find morphisms m in
+        let (num_inputs,num_outputs) = Hashtbl.find morphisms m in
         let morph   = draw_morphism m x y in
         let inputs  = generate_none_inputs num_inputs x y in
         let outputs = generate_none_outputs num_outputs x y in
-        Hashtbl.add morphismLocations m (Point((x+1), y));
+        Hashtbl.add morphismLocations m (Point((x+.1.0), y));
         inputs ^ morph ^ outputs
     | Morphism(m, Some(ins), None)  ->
         (* ins is in the style [1,x,2] -- signalling 4 inputs *)
-        let Point(num_inputs, num_outputs) = Hashtbl.find morphisms m in
+        let (num_inputs, num_outputs) = Hashtbl.find morphisms m in
         let morph   = draw_morphism m x y in
         let inputs  = generate_some_inputs ins x y  in
         let outputs = generate_none_outputs num_outputs x y in
-        Hashtbl.add morphismLocations m (Point((x+1), y));
+        Hashtbl.add morphismLocations m (Point((x+.1.0), y));
         inputs ^ morph ^ outputs
     | Morphism(m, None, Some(outs)) ->
-        let Point(num_inputs, num_outputs) = Hashtbl.find morphisms m in
+        let (num_inputs, num_outputs) = Hashtbl.find morphisms m in
         let morph = draw_morphism m x y in
         let inputs = generate_none_inputs num_inputs x y in
         let outputs = generate_some_outputs outs x y in
-        Hashtbl.add morphismLocations m (Point((x+1), y));
+        Hashtbl.add morphismLocations m (Point((x+.1.0), y));
         inputs ^ morph ^ outputs
     | Morphism (m,Some(inputs), Some(outputs)) -> failwith "not implemented3"
     | Tensor(a,b)               ->
         let a' = draw_structurally x y a in
-        let b' = draw_structurally x (y-2) b in
+        let b' = draw_structurally x (y-.2.0) b in
         a' ^ b'
     | Composition(f,g) ->
         let f' = draw_structurally x y f in
-        let g' = draw_structurally (x+3) y g in
+        let g' = draw_structurally (x+.(width f)) y g in
         f' ^ g'
     | Subdiagram(diagram,ins,outs) ->
         draw_structurally x y diagram
@@ -228,8 +234,8 @@ let tup = function
 let unwrap_def_list = function
   | [] -> []
   | (Definition(b_list, w_list)::xs) ->
-      List.map (fun f wire -> let (inp, outp) = tup wire in Hashtbl.add links outp inp) w_list;
-      b_list (* we can discard the tail *)
+      List.map (fun wire -> let (inp, outp) = tup wire in printf "Adding links %s -> %s\n" outp inp; Hashtbl.add links outp inp) w_list;
+      b_list (* we can discard the tail because the list is only being used so we either have 0 or 1 definitions *)
 
 let add_styles (Box (b,_, _, style)) = match style with
   | None -> ""
@@ -272,11 +278,22 @@ let rec extract_boxes ms bs = match (ms, bs) with
   | (Module(name, b_list, w_list, diag)::xs), [] -> b_list @ (extract_boxes xs [])
   | (Module(name, b_list, w_list, diag)::xs), (Definition(b_list', w_list')::xs') -> b_list @ b_list' @ (extract_boxes xs xs')
 
+let rec getNodeLocations = function
+  | []                         -> []
+  | ((x, y)::xs) -> ((Point(Hashtbl.find nodes x)),(Point(Hashtbl.find nodes y)) ) :: (getNodeLocations xs)
+
 
 let compile_program = function
   | Program(module_list, def_list, diag) ->
           let styling = extract_boxes module_list def_list |> List.map add_styles |> List.fold_left (^) "" in
+
           update_morphism_table (unwrap_def_list def_list);
-          let body = (draw_structurally 0 0 diag)  in
-          let whole = prefix  ^ body ^ suffix in
+
+          let body = (draw_structurally 0.0 0.0 diag)  in
+          let links_list = (Hashtbl.fold (fun k v acc -> (k, v) :: acc) links [])  in (* (string * string) list *)
+          let links_list' = getNodeLocations links_list in
+          let links' = connect links_list' in
+          printf "Length of links list: %i\n\n\n" (List.length links_list);
+          printf "Length of links' list: %i\n\n\n" (List.length links_list');
+          let whole = prefix  ^ body ^ links' ^ suffix in
           whole
