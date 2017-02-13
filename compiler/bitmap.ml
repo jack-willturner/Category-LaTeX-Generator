@@ -101,8 +101,8 @@ let rec search start goal fringe path = match fringe with
                                     else
                                       (match status with
                                         | 0 -> succ
-                                        | 1 -> (* can only go up/down *)
-                                        | 2 -> (* can only go left/right *)
+                                        | 1 -> [(List.nth succ 1);(List.nth succ 5)](* can only go up/down *)
+                                        | 2 -> [(List.nth succ 3);(List.nth succ 7)](* can only go left/right *)
                                         | 3 -> [] )
 
 (* TODO - add heuristics *)
