@@ -25,36 +25,44 @@ type node = {
 
 let string_of_coord x y = "x" ^ (i |> string_of_int)  ^ "y" ^ (j |> string_of_int)
 
+(* Each adjacency list is made up of 8 elements describing the successors of the square clockwise  *)
 let generate_adjacency_lists x y =
   for i = 0 to x do
     for j = 0 to y do
       let n = string_of_coord x y in
       and succ =
       (match i j with
-        | 0,0   ->  ["x1y0";"x0y1";"x1y1"]
-        | 0,n   -> (* only want above, below and right of *)
+        | 0,0   ->  [Some("x0y1");Some("x1y1");Some("x1y0");None;None;None;None;None]
+        | 0,n   -> (* along the left hand side of the grid *)
                     if n = y
-                    then [(string_of_coord 0 (n-1)); (string_of_coord 1 n); (string_of_coord 1 (n-1))]
-                    else [(string_of_coord 0 (n+1)); (string_of_coord 0 (n-1)); (string_of_coord 1 n+1); (string_of_coord 1 n); (string_of_coord 1 (n-1))]
-        | n,0   -> (* only want left, right and above *)
+                    then [None;None;Some(string_of_coord 1 n);Some(string_of_coord 1 (n-1));Some(string_of_coord 0 (n-1));None;None;None]
+                    else [Some(string_of_coord 0 (n+1)); Some(string_of_coord 1 n+1); Some(string_of_coord 1 n); Some(string_of_coord 1 (n-1)); Some(string_of_coord 0 (n-1)); None; None; None]
+        | n,0   -> (* along the bottom line of the grid *)
                     if n = x
-                    then [(string_of_coord (n-1) 0); (string_of_coord (n-1) 1); (string_of_coord n 1)]
-                    else [(string_of_coord (n-1) 0); (string_of_coord (n-1) 1); (string_of_coord n 1); (string_of_coord (n+1) 1); (string_of_coord (n+1) 0)]
+                    then [Some(string_of_coord n 1); None; None; None; None; None;Some(string_of_coord (n-1) 0); Some(string_of_coord (n-1) 1)]
+                    else [Some(string_of_coord n 1); Some(string_of_coord (n+1) 1); Some(string_of_coord (n+1) 0); None; None; None; Some(string_of_coord (n-1) 0); Some(string_of_coord (n-1) 1)  ]
         | x', y' ->  (* check if on top or right edge *)
                     if x' = x then
                       if y' = y then
                         (* top right hand corner *)
-                        [(string of_coord (x'-1) y); (string_of_coord (x'-1) (y'-1)); (string_of_coord x' (y'-1))]
+                        [None; None; None; None; Some(string_of_coord x' (y'-1)); Some(string_of_coord (x'-1) (y'-1)); Some(string_of_coord (x'-1) y); None ]
                       else
                         (* right hand side of grid but not in either corner *)
-                        [(string of_coord (x'-1) y); (string_of_coord (x'-1) (y'-1)); (string_of_coord x' (y'-1)); (string_of_coord (x'-1) (y+1)); (string_of_coord x' (y+1))]
+                        [Some(string_of_coord x' (y+1)); None; None; None; Some(string_of_coord x' (y'-1)); Some(string_of_coord (x'-1) (y'-1)); Some(string_of_coord (x'-1) y); Some(string_of_coord (x'-1) (y+1)) ]
                     else
                       if y' = y then
                         (* along the top of the grid but not near either corner *)
-                        [(string_of_coord (x'-1) y); (string_of_coord (x'-1) (y'-1)); (string_of_coord x' (y'-1)); (string_of_coord (x'+1) (y'-1)); (string_of_coord (x'+1) y')]
+                        [None; None;(string_of_coord (x'+1) y'); Some(string_of_coord (x'+1) (y'-1));Some(string_of_coord x' (y'-1));Some(string_of_coord (x'-1) (y'-1)); Some(string_of_coord (x'-1) y);   None]
                       else
                         (* somewhere in the centre of the grid *)
-                        [(string_of_coord (x'-1) y); (string_of_coord (x'-1) (y'-1)); (string_of_coord x' (y'-1)); (string_of_coord (x'+1) (y'-1)); (string_of_coord (x'+1) y'); (string_of_coord (x'+1) (y'+1)); (string_of_coord x' (y'+1)); (string_of_coord (x'-1) (y'+1))]
+                        [Some(string_of_coord x' (y'+1));
+                         Some(string_of_coord (x'+1) (y'+1));
+                         Some(string_of_coord (x'+1) y');
+                         Some(string_of_coord (x'+1) (y'-1));
+                         Some(string_of_coord x' (y'-1));
+                         Some(string_of_coord (x'-1) (y'-1));
+                         Some(string_of_coord (x'-1) y);
+                         Some(string_of_coord (x'-1) (y'+1))]
       ) in
       Hashtbl.add graph n {
                                 name = n;
@@ -86,7 +94,6 @@ let rec expand vertex = let {_,_,_,_,succ} = Hashtbl.find graph vertex in
                         succ
 
 let strategy oldf newf = newf @ oldf (* TODO - change this to priority queue *)
-
 
 let rec search start goal fringe path = match fringe with
   | []    -> failwith "No route exists"
