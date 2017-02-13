@@ -99,18 +99,12 @@ let rec search start goal fringe path = match fringe with
   | []    -> failwith "No route exists"
   | ({name,x,y,status,succ})::xs -> if goal == name then [(x,y)]
                                     else
-                                      (match status with
-                                        | 0 -> succ
+                                      let fringe' = (match status with
+                                        | 0 -> [(List.nth succ 1); (List.nth succ 3); (List.nth succ 5); (List.nth 7)]
                                         | 1 -> [(List.nth succ 1);(List.nth succ 5)](* can only go up/down *)
                                         | 2 -> [(List.nth succ 3);(List.nth succ 7)](* can only go left/right *)
-                                        | 3 -> [] )
-
-(* TODO - add heuristics *)
-let rec search fringe start goal path =
-  match fringe with
-    | []    -> failwith "No route exists"
-    | x::xs -> if goal x then [x]
-               else search graph (strategy xs (expand x graph) goal (path@[x])
+                                        | 3 -> [] ) in
+                                      search graph (strategy xs fringe') goal (path@[(x,y)])
 
 let rec find_route = function
   | []           -> [[]]
