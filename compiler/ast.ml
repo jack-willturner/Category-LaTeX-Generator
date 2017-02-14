@@ -33,3 +33,18 @@ let rec string_of_diagram = function
 
 let string_of_top = function
   | Program(module_list, diagram_list, diagram') -> string_of_diagram diagram'
+
+
+type priority =
+    | Free
+    | OccupiedHorizontal
+    | OccupiedVertical
+    | Blocked
+
+  type node = {
+      name : string;
+      xLoc : int;
+      yLoc : int;
+      status : priority;
+      successors : string option list; (* might be better as a hashtable *)
+  }

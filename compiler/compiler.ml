@@ -2,6 +2,7 @@ open Ast
 open Hashtbl
 open Buffer
 open Printf
+open Bitmap
 
 (* First, set up a hashtable of morphisms *)
 let morphisms         = Hashtbl.create 64         (* f : 1 -> 3 :: f | 1,3 - symbol table *)
@@ -181,6 +182,18 @@ let rec width = function
   | Tensor(a,b) -> max (width a) (width b)
   | Composition(a,b) -> width a +. width b
 
+let rec width' = function
+  | Identity  -> 1
+  | Morphism(m, _, _) -> 1
+  | Tensor(a,b) -> max (width' a) (width' b)
+  | Composition(a,b) -> width' a + width' b
+
+let rec height = function
+  | Identity -> 1
+  | Morphism(m,_,_) -> 1
+  | Tensor(a,b) -> height a + height b
+  | Composition(a,b) -> max (height a) (height b)
+
 let draw_morphism m x y =
   ("\t\\node[morphism] (" ^ m ^ ")\tat (" ^ (x+.1.0|>string_of_float) ^ "," ^ (y|>string_of_float) ^ ")\t\t{$" ^ m ^"$};\n\n")
 
@@ -280,20 +293,32 @@ let rec extract_boxes ms bs = match (ms, bs) with
 
 let rec getNodeLocations = function
   | []                         -> []
-  | ((x, y)::xs) -> ((Point(Hashtbl.find nodes x)),(Point(Hashtbl.find nodes y)) ) :: (getNodeLocations xs)
+  | ((x, y)::xs) -> ((Hashtbl.find nodes x),(Hashtbl.find nodes y) ) :: (getNodeLocations xs)
+
+let path_suffix corners = match corners with
+  | []        -> ""
+  | (x,y)::xs -> " -- (" ^ (x |> string_of_float) ^ "," ^ (y |> string_of_float) ^ ")"
+
+let path_prefix (x,y) =
+  "\\draw[black, rounded corners = 8pt] (" ^ (x |> string_of_float) ^ "," ^ (y |> string_of_float) ^ ")"
+
+let draw = function
+  | [] -> "\n"
+  | xs -> let (sx,sy) = List.hd xs in
+          let (gx,gy) = List.rev xs |> List.hd in
+  path_prefix (sx,sy) ^ path_suffix corners ^ path_suffix [(gx,gy)]
 
 
 let compile_program = function
   | Program(module_list, def_list, diag) ->
           let styling = extract_boxes module_list def_list |> List.map add_styles |> List.fold_left (^) "" in
-
           update_morphism_table (unwrap_def_list def_list);
-
           let body = (draw_structurally 0.0 0.0 diag)  in
           let links_list = (Hashtbl.fold (fun k v acc -> (k, v) :: acc) links [])  in (* (string * string) list *)
+          let box_list   = (Hashtbl.fold (fun k v acc -> (get_coords v) :: acc) morphismLocations [])  in
           let links_list' = getNodeLocations links_list in
-          let links' = connect links_list' in
-          printf "Length of links list: %i\n\n\n" (List.length links_list);
-          printf "Length of links' list: %i\n\n\n" (List.length links_list');
-          let whole = prefix  ^ body ^ links' ^ suffix in
+          (*let links' = connect links_list' in *)
+          let corners = Bitmap.find_routes links_list' (width' diag) (height diag) box_list in
+          let string_drawing_of_wires = List.map draw corners in
+          let whole = prefix  ^ body ^ string_drawing_of_wires ^ suffix in
           whole
