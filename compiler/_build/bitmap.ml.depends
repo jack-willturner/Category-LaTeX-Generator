@@ -1,1 +1,1 @@
-bitmap.ml: Ast Hashtbl List Printf String
+bitmap.ml: Ast Hashtbl List Printf PrioQueue String

@@ -1,6 +1,7 @@
 open Ast
 open Printf
 open List
+open PrioQueue
 
 (* TODO calculate coordinates of ports *)
 
@@ -113,6 +114,15 @@ let rec expand vertex = let {name; xLoc; yLoc; status; successors} = Hashtbl.fin
 
 let strategy oldf newf visited = remove (newf @ oldf) visited (* TODO - change this to priority queue *)
 
+let rec strategy' oldf newf visited goal = match newf with
+  | []        -> remove (PrioQueue.to_list oldf) visited
+  | x::xs     -> let (node_x,node_y) = coord_of_string x in
+                 let (goal_x,goal_y) = coord_of_string goal in
+                 let manhattan_dist = abs(node_x - goal_x) + abs(node_y - goal_y) in
+                 let euclidean_dist = int_of_float (sqrt(float (abs(node_x - goal_x) * abs(node_x - goal_x) + abs(node_y - goal_y) * abs(node_y - goal_y)))) in
+                 strategy' (PrioQueue.insert oldf (manhattan_dist + euclidean_dist) x) xs visited goal
+
+
 let scale_down (x,y) = let x' = float x /. 10.0 in
                        let y' = float y /. 10.0 in
                        (x',y')
@@ -145,7 +155,6 @@ let rec print_path = function
   | (x,y)::xs -> printf "(%i,%i) --" x y; print_path xs
 
 
-
 (* returns a path of int * int list *)
 let rec search goal fringe path visited = match fringe with
   | []    -> failwith "No route exists"
@@ -155,7 +164,7 @@ let rec search goal fringe path visited = match fringe with
                                     let end_path = [(xLoc,yLoc)] in
                                     print_path (path@end_path);
                                     end_path
-                                    else search goal (strategy xs (expand x) (x::visited)) (path@[(xLoc,yLoc)]) (x::visited)
+                                    else search goal (strategy' xs (expand x) (x::visited) goal) (path@[(xLoc,yLoc)]) (x::visited)
 
 
 let rec find_route = function
