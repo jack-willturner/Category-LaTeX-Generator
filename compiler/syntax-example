@@ -1,7 +1,7 @@
 box f : 1 -> 2.
 box g : 1 -> 1.
-box h : 1 -> 1
-link . f ; f ; f ; f ; f ; f
+box h : 2 -> 1
+link x y. f[1,x] ; g ; h[1,y]
 
 (*
 STAGE 1:
