@@ -150,6 +150,8 @@ let rec generate_some_outputs input_list x y =
         Buffer.clear temporary;
         some_outputs
 
+
+
 let generate_none_inputs num_inputs x y  =
   let height  = 1.25 in (* Where 0.55 and -0.55 are the bounds of a box *)
   let spacing = height /. float (num_inputs + 1) in
@@ -338,8 +340,9 @@ let compile_program = function
           let links_list = (Hashtbl.fold (fun k v acc -> (k, v) :: acc) links [])  in (* (string * string) list *)
           let box_list   = (Hashtbl.fold (fun k v acc -> (get_coords v) :: acc) morphismLocations [])  in
           let links_list' = getNodeLocations links_list in
+          let links_list'' = [((3.250000,0.208333),(7.40000,0.208333))] in
           print_links_list links_list';
-          let paths = Bitmap.find_routes links_list' (width' diag) (height diag) box_list in
+          let paths = Bitmap.find_routes links_list'' (10) (3) box_list in
           let string_drawing_of_wires = List.map draw paths |> List.fold_left (^) ""  in
           let whole = prefix  ^ body ^ string_drawing_of_wires  ^ suffix in
           whole

@@ -135,8 +135,8 @@ let rec strategy' oldf newf visited goal = match newf with
                  strategy' (PrioQueue.insert oldf (manhattan_dist + cost) x visited) xs visited goal
 
 let scale_down box_size (x,y)
-                     = let x' = float x /. 10.0 in
-                       let y' = float (y - box_size) /. 10.0 in
+                     = let x' = float (x) /. 10.0 +. 0.5 in
+                       let y' = float (y - box_size) /. 10.0 -. 1.4 in
                        (x',y')
 
 let rec corners = function
@@ -216,10 +216,14 @@ let rec search start goal fringe visited = match fringe with
 
 let reset_costs = Hashtbl.iter (fun n {name;xLoc;yLoc;status;successors;cost;parent} ->  Hashtbl.replace graph n {name;xLoc;yLoc;status;successors;cost=0;parent=""}) graph
 
+let free_coord c = let {name;xLoc;yLoc;status;successors;cost;parent} = Hashtbl.find graph c in
+                   Hashtbl.replace graph c {name;xLoc;yLoc;status = Free;successors;cost;parent}
+
 let rec find_route = function
   | []    -> [[]]
   | ((from_x, from_y),(to_x,to_y))::xs ->
     printf "Linking x to y:\t\t (%i,%i) -- (%i,%i)\n" from_x from_y to_x to_y;
+    free_coord (string_of_coord from_x from_y);
     let goal = string_of_coord to_x to_y in
     let start = string_of_coord from_x from_y in
     let fringe = expand start [] in
@@ -235,27 +239,26 @@ let rec find_route = function
 
 let rec scale_up box_size = function
   | []                  -> []
-  | ((x,y),(x',y'))::xs -> let xx =  (x *. 10.0 +. 1.0)              |> int_of_float in
-                           let yy =   y *. 10.0  +. (float box_size) |> int_of_float in
-                           let xx' = (x' *. 10.0 -. 2.0)             |> int_of_float in
-                           let yy' =  y' *. 10.0 +. (float box_size) |> int_of_float in
+  | ((x,y),(x',y'))::xs -> let xx =   x *. 10.0               |> int_of_float in
+                           let yy =   (y +. 1.0) *. 30.0       |> int_of_float in        (* raise everything by one box *)
+                           let xx' = (x' *. 10.0)             |> int_of_float in
+                           let yy' =  (y' +. 1.0) *. 30.0      |> int_of_float in        (* raise everything by one box *)
                            ((xx,yy),(xx',yy')):: scale_up box_size xs
 
-(* +. (float (box_size) /. 2.0)  *)
+(* \draw[black,rounded corners=3pt] (3.25,0.208) -- (3.5,0.208) -- (4, 0.8) -- (7.5, 0.8) -- (8,0.208) -- (8.5,0.208) *)
 
+
+(* THIS SCALES UP BOXES, NOT WIRES *)
 let rec scale_up' box_size = function
  | []                  -> []
- | (x,y)::xs -> let xx = int_of_float ((x +. 1.0 *. 10.0) in
-                let yy = y *. 10.0  +. (float box_size)|> int_of_float in
+ | (x,y)::xs -> let xx = int_of_float (x *. 10.0) in
+                let yy = y *. 10.0 +. (float box_size)|> int_of_float in
                 ((xx,yy)):: scale_up' box_size xs
 
-
-
-
 let find_routes wires width height boxes =
-  let width'   = width  * 40 in
-  let box_size = width' / (List.length boxes) / 2 in
-  let height'  = height * 40 + box_size  in
+  let width'   = width  * 10 in
+  let box_size = (*width' / (List.length boxes) / 2 in *) 20 in
+  let height'  = height * 10 + box_size  in
   generate_adjacency_lists (width') (height');
   place_morphisms (box_size) (scale_up' box_size boxes);
   printf "Width:\t\t\t%i\nHeight:\t\t\t%i\n" width' height';
