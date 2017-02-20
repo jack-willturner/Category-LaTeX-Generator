@@ -111,7 +111,7 @@ let rec generate_some_inputs input_list x y =
                 let (to_x', to_y') = Hashtbl.find nodes s in
                 "\t\\draw[black] \t(" ^ from_x ^","^ from_y ^ ") -- (" ^ to_x' ^ "," ^  to_y' ^ ");\n" |> Buffer.add_string temporary
               else
-                Hashtbl.add nodes s (to_x, to_y);
+                Hashtbl.add nodes s (from_x, from_y);
                 "\t\\draw[black] \t(" ^ from_x ^","^ from_y ^ ") -- (" ^ to_x ^ "," ^  to_y ^ ");\n" |> Buffer.add_string temporary
           )
         done;
@@ -142,7 +142,7 @@ let rec generate_some_outputs input_list x y =
                 let (to_x', to_y') = Hashtbl.find nodes s in
                 "\t\\draw[black] \t(" ^ from_x ^","^ from_y ^ ") -- (" ^ to_x' ^ "," ^  to_y' ^ ");\n" |> Buffer.add_string temporary
               else
-                Hashtbl.add nodes s (to_x, to_y);
+                Hashtbl.add nodes s (from_x, from_y);
                 "\t\\draw[black] \t(" ^ from_x ^","^ from_y ^ ") -- (" ^ to_x ^ "," ^  to_y ^ ");\n" |> Buffer.add_string temporary
           )
         done;
@@ -301,14 +301,14 @@ let rec getNodeLocations = function
                     let (from_nx', from_ny') = ((from_nx |>float_of_string),(from_ny |> float_of_string)) in
                     let (to_nx, to_ny)    = (Hashtbl.find nodes y) in
                     let (to_nx', to_ny') = ((to_nx |>float_of_string),(to_ny |> float_of_string)) in
-    ((from_nx', from_ny'),(to_nx',to_ny') ) :: (getNodeLocations xs)
+    ((to_nx',to_ny'),(from_nx', from_ny') ) :: (getNodeLocations xs)
 
 let path_suffix corners = match corners with
   | []        -> ""
   | (x,y)::xs -> " -- (" ^ (x |> string_of_float) ^ "," ^ (y |> string_of_float) ^ ")"
 
 let path_prefix (x,y) =
-  "\t\\draw[black, rounded corners = 8pt] (" ^ (x |> string_of_float) ^ "," ^ (y |> string_of_float) ^ ") -- "
+  "\t\\draw[black, rounded corners = 3pt] (" ^ (x |> string_of_float) ^ "," ^ (y |> string_of_float) ^ ") -- "
 
 let rec print_path = function
   | []        -> "\n"
@@ -338,9 +338,8 @@ let compile_program = function
           let links_list = (Hashtbl.fold (fun k v acc -> (k, v) :: acc) links [])  in (* (string * string) list *)
           let box_list   = (Hashtbl.fold (fun k v acc -> (get_coords v) :: acc) morphismLocations [])  in
           let links_list' = getNodeLocations links_list in
-          let links_list'' = [((3.5,0.208333333333),(7.5,0.208333333333))] in
-          let paths = Bitmap.find_routes links_list'' (width' diag) (height diag) box_list in
-          List.map print_path' paths;
+          print_links_list links_list';
+          let paths = Bitmap.find_routes links_list' (width' diag) (height diag) box_list in
           let string_drawing_of_wires = List.map draw paths |> List.fold_left (^) ""  in
           let whole = prefix  ^ body ^ string_drawing_of_wires  ^ suffix in
           whole

@@ -48,4 +48,5 @@ type priority =
       status : priority;
       successors : string option list;
       cost :  int;
+      parent : string;
   }
