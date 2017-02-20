@@ -70,15 +70,16 @@ let generate_adjacency_lists x y =
                                 yLoc = j;
                                 status = Free;
                                 successors = succ;
+                                cost = 0;
                               }
     done;
   done
 
 let block_coord coord =
   try
-    let {name; xLoc; yLoc; status; successors} = Hashtbl.find graph coord in
+    let {name; xLoc; yLoc; status; successors;cost} = Hashtbl.find graph coord in
     let status = Blocked in
-    Hashtbl.replace graph coord {name; xLoc; yLoc; status; successors}
+    Hashtbl.replace graph coord {name; xLoc; yLoc; status; successors;cost}
   with
     | Not_found -> failwith "Could not block coordinate"
 
@@ -103,14 +104,25 @@ let rec clean = function
   | (None)::xs   -> clean xs
   | (Some x)::xs -> x :: clean xs
 
-
-let rec expand vertex = let {name; xLoc; yLoc; status; successors} = Hashtbl.find graph vertex in
-  (match status with
+(* ADD A PARENT FIELD YOU IDIOT *)
+let rec expand vertex = let {name; xLoc; yLoc; status; successors; cost} = Hashtbl.find graph vertex in
+  let parent_cost = cost in
+  let new_successors = (match status with
       | Free                 -> clean [(List.nth successors 2);(List.nth successors 0);(List.nth successors 4); (List.nth successors 6)]
       | OccupiedHorizontal   -> clean [(List.nth successors 0);(List.nth successors 4)] (* can only go up/down *)
       | OccupiedVertical     -> clean [(List.nth successors 2);(List.nth successors 5)] (* can only go left/right *)
-      | Blocked              -> [] )
-
+      | Blocked              -> [] ) in
+    for i = 0 to (List.length new_successors -1) do
+      let {name; xLoc; yLoc; status; successors; cost} = Hashtbl.find graph (List.nth new_successors i) in
+      let vertex_cost = cost in
+      Hashtbl.replace graph (List.nth new_successors i) {name = name;
+                                                         xLoc = xLoc;
+                                                         yLoc = yLoc;
+                                                         status = status;
+                                                         successors = successors;
+                                                         cost = (vertex_cost + parent_cost)}
+    done;
+    new_successors
 
 let strategy oldf newf visited = remove (newf @ oldf) visited (* TODO - change this to priority queue *)
 
@@ -119,8 +131,8 @@ let rec strategy' oldf newf visited goal = match newf with
   | x::xs     -> let (node_x,node_y) = coord_of_string x in
                  let (goal_x,goal_y) = coord_of_string goal in
                  let manhattan_dist = abs(node_x - goal_x) + abs(node_y - goal_y) in
-                 let euclidean_dist = int_of_float (sqrt(float (abs(node_x - goal_x) * abs(node_x - goal_x) + abs(node_y - goal_y) * abs(node_y - goal_y)))) in
-                 strategy' (PrioQueue.insert oldf (manhattan_dist + euclidean_dist) x visited) xs visited goal
+                 let {name; xLoc; yLoc; status; successors; cost} = Hashtbl.find graph x in
+                 strategy' (PrioQueue.insert oldf (manhattan_dist + cost) x visited) xs visited goal
 
 let scale_down (x,y) = let x' = float x /. 10.0 in
                        let y' = float y /. 10.0 in
@@ -195,13 +207,13 @@ let rec a_star_search open_set closed_set parents goal = match open_set with
 let rec search goal fringe path visited = match fringe with
   | PrioQueue.Empty    -> failwith "No route exists"
   | PrioQueue.Node(prio,x,left,right) ->
-                          let ({name;xLoc;yLoc;status;successors}) = Hashtbl.find graph x in
-                                    if goal = name then
-                                      reconstruct_path name ((name, (List.hd visited))::path)
-                                    else
-                                      (search goal (strategy' (PrioQueue.remove_top (PrioQueue.Node(prio,x,left,right))) (expand x) (x::visited) goal) ((name,(List.hd visited))::path)
-                                              (x::visited))
+    let ({name;xLoc;yLoc;status;successors;cost}) = Hashtbl.find graph x in
+    if goal = name then
+      reconstruct_path name ((name, (List.hd visited))::path)
+    else
+      (search goal (strategy' (PrioQueue.remove_top (PrioQueue.Node(prio,x,left,right))) (expand x) (x::visited) goal) ((name,(List.hd visited))::path) (x::visited))
 
+let reset_costs = Hashtbl.iter (fun n {name;xLoc;yLoc;status;successors;cost} ->  Hashtbl.replace graph n {name;xLoc;yLoc;status;successors;cost=0}) graph
 
 let rec find_route = function
   | []    -> [[]]
@@ -210,8 +222,15 @@ let rec find_route = function
     let goal = string_of_coord to_x to_y in
     let start = string_of_coord from_x from_y in
     let fringe = expand start in
+    for i = 0 to (List.length fringe - 1) do
+      let {name;xLoc;yLoc;status;successors;cost} = Hashtbl.find graph (List.nth fringe i) in
+      let cost = 10 in
+      Hashtbl.replace graph (List.nth fringe i) {name;xLoc;yLoc;status;successors;cost}
+    done;
     let fringe' = strategy' PrioQueue.Empty fringe [] goal in
-    (search goal fringe' [] [start]) :: find_route xs
+    let route   = (search goal fringe' [] [start]) in
+    reset_costs;
+    route :: find_route xs
 
 let rec scale_up = function
   | []                  -> []

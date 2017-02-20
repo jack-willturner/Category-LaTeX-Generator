@@ -46,5 +46,6 @@ type priority =
       xLoc : int;
       yLoc : int;
       status : priority;
-      successors : string option list; (* might be better as a hashtable *)
+      successors : string option list;
+      cost :  int;
   }
