@@ -308,13 +308,22 @@ let path_suffix corners = match corners with
   | (x,y)::xs -> " -- (" ^ (x |> string_of_float) ^ "," ^ (y |> string_of_float) ^ ")"
 
 let path_prefix (x,y) =
-  "\t\\draw[black, rounded corners = 8pt] (" ^ (x |> string_of_float) ^ "," ^ (y |> string_of_float) ^ ")"
+  "\t\\draw[black, rounded corners = 8pt] (" ^ (x |> string_of_float) ^ "," ^ (y |> string_of_float) ^ ") -- "
+
+let rec print_path = function
+  | []        -> "\n"
+  | [(x,y)]   -> "(" ^ (x |> string_of_float) ^ "," ^ (y |> string_of_float) ^ ")"
+  | (x,y)::xs -> "(" ^ (x |> string_of_float) ^ "," ^ (y |> string_of_float) ^ ") -- " ^ print_path xs
+
+let rec print_path' = function
+    | [] -> printf "\n"
+    | (x,y)::xs -> printf "(%f,%f) --" x y; print_path' xs
 
 let draw = function
   | [] -> "\n"
   | xs -> let (sx,sy) = List.hd xs in
           let (gx,gy) = List.rev xs |> List.hd in
-          path_prefix (sx,sy) ^ path_suffix xs ^ path_suffix [(gx,gy)]
+          path_prefix (sx,sy) ^ print_path (List.tl xs)
 
 let print_links_list = function
   | [] -> ()
@@ -329,10 +338,9 @@ let compile_program = function
           let links_list = (Hashtbl.fold (fun k v acc -> (k, v) :: acc) links [])  in (* (string * string) list *)
           let box_list   = (Hashtbl.fold (fun k v acc -> (get_coords v) :: acc) morphismLocations [])  in
           let links_list' = getNodeLocations links_list in
-          print_links_list links_list';
-          (*let links' = connect links_list' in *)
           let links_list'' = [((3.5,0.208333333333),(7.5,0.208333333333))] in
-          let corners = Bitmap.find_routes links_list'' (width' diag) (height diag) box_list in
-          let string_drawing_of_wires = List.map draw corners |> List.fold_left (^ ) ""  in
+          let paths = Bitmap.find_routes links_list'' (width' diag) (height diag) box_list in
+          List.map print_path' paths;
+          let string_drawing_of_wires = List.map draw paths |> List.fold_left (^) ""  in
           let whole = prefix  ^ body ^ string_drawing_of_wires  ^ suffix in
           whole

@@ -115,13 +115,12 @@ let rec expand vertex = let {name; xLoc; yLoc; status; successors} = Hashtbl.fin
 let strategy oldf newf visited = remove (newf @ oldf) visited (* TODO - change this to priority queue *)
 
 let rec strategy' oldf newf visited goal = match newf with
-  | []        -> remove (PrioQueue.to_list oldf) visited
+  | []        -> oldf
   | x::xs     -> let (node_x,node_y) = coord_of_string x in
                  let (goal_x,goal_y) = coord_of_string goal in
                  let manhattan_dist = abs(node_x - goal_x) + abs(node_y - goal_y) in
                  let euclidean_dist = int_of_float (sqrt(float (abs(node_x - goal_x) * abs(node_x - goal_x) + abs(node_y - goal_y) * abs(node_y - goal_y)))) in
-                 strategy' (PrioQueue.insert oldf (manhattan_dist + euclidean_dist) x) xs visited goal
-
+                 strategy' (PrioQueue.insert oldf (manhattan_dist + euclidean_dist) x visited) xs visited goal
 
 let scale_down (x,y) = let x' = float x /. 10.0 in
                        let y' = float y /. 10.0 in
@@ -154,17 +153,54 @@ let rec print_path = function
   | [] -> printf "\n"
   | (x,y)::xs -> printf "(%i,%i) --" x y; print_path xs
 
+let rec find elt ls = match ls with
+  | []        -> failwith "could not find"
+  | (o,i)::xs -> if o = elt then i else find elt xs
 
-(* returns a path of int * int list *)
+let rec reconstruct_path elt = function
+  | []        -> []
+  | xs        ->
+          printf "looking for %s\n" elt;
+          let prev = find elt xs in
+          prev :: reconstruct_path prev xs
+
+(*
+let g neighbour goal =
+    let (node_x,node_y) = coord_of_string neighbour in
+    let (goal_x,goal_y) = coord_of_string goal in
+    abs(node_x - goal_x) + abs(node_y - goal_y)
+
+let rec f curr open_set closed_set goal = function
+  (match successors with
+    | []            -> [[],[]]
+    | neighbour::xs ->
+        let cost = g(current) + movement_cost(current, neighbour) in
+        if PrioQueue.contains neighbour open_set && cost < (g neighbour goal) then
+          ((PrioQueue.remove neighbour open_set),parents):: f xs
+        else if List.mem neighbour closed_set' && cost < (g neighbour goal) then
+          a_star_search open_set (remove neighbour closed_set') parents goal  (* never happens if heuristic is admissable - TODO Test *)
+        else
+          a_star_search (strategy' open_set neighbour closed_set' goal) closed_set' ((neighbour,name)::parents) goal )
+
+let rec a_star_search open_set closed_set parents goal = match open_set with
+  | PrioQueue.Empty -> failwith "no route"
+  | PrioQueue.Node(prio,curr,left,right) ->
+        let closed_set' = curr :: closed_set in
+        let ({name;xLoc;yLoc;status;successors}) = Hashtbl.find graph curr in
+        let (open_set', parents) =
+*)
+
+
+(* TODO reconstruct path  *)
 let rec search goal fringe path visited = match fringe with
-  | []    -> failwith "No route exists"
-  | x::xs -> let ({name;xLoc;yLoc;status;successors}) = Hashtbl.find graph x in
-                                    if goal = name
-                                    then
-                                    let end_path = [(xLoc,yLoc)] in
-                                    print_path (path@end_path);
-                                    end_path
-                                    else search goal (strategy' xs (expand x) (x::visited) goal) (path@[(xLoc,yLoc)]) (x::visited)
+  | PrioQueue.Empty    -> failwith "No route exists"
+  | PrioQueue.Node(prio,x,left,right) ->
+                          let ({name;xLoc;yLoc;status;successors}) = Hashtbl.find graph x in
+                                    if goal = name then
+                                      reconstruct_path name ((name, (List.hd visited))::path)
+                                    else
+                                      (search goal (strategy' (PrioQueue.remove_top (PrioQueue.Node(prio,x,left,right))) (expand x) (x::visited) goal) ((name,(List.hd visited))::path)
+                                              (x::visited))
 
 
 let rec find_route = function
@@ -173,25 +209,23 @@ let rec find_route = function
     printf "Linking x to y:\t\t (%i,%i) -- (%i,%i)\n" from_x from_y to_x to_y;
     let goal = string_of_coord to_x to_y in
     let start = string_of_coord from_x from_y in
-    let paths = corners' ((from_x,from_y) :: (search goal (expand start) [(from_x, from_y)]) [(string_of_coord from_x from_y)])
-     :: find_route xs in
-     print_path (List.hd paths);
-     paths
-
+    let fringe = expand start in
+    let fringe' = strategy' PrioQueue.Empty fringe [] goal in
+    (search goal fringe' [] [start]) :: find_route xs
 
 let rec scale_up = function
   | []                  -> []
-  | ((x,y),(x',y'))::xs -> let xx = (x *. 10.0 +. 1.0) |> int_of_float  in
-                           let yy = y *. 10.0          |> int_of_float in
-                           let xx' = (x' *. 10.0 -. 1.0) |> int_of_float in
-                           let yy' = y' *. 10.0 |> int_of_float in
+  | ((x,y),(x',y'))::xs -> let xx =  (x *. 10.0 +. 1.0)    |> int_of_float  in
+                           let yy =   y *. 10.0            |> int_of_float in
+                           let xx' = (x' *. 10.0 -. 1.0)   |> int_of_float in
+                           let yy' =  y' *. 10.0           |> int_of_float in
                            ((xx,yy),(xx',yy')):: scale_up xs
 
 let rec scale_up' = function
  | []                  -> []
  | (x,y)::xs -> let xx = int_of_float (x *. 10.0) in
-                  let yy = y *. 10.0  |> int_of_float in
-                  ((xx,yy)):: scale_up' xs
+                let yy = y *. 10.0  |> int_of_float in
+                ((xx,yy)):: scale_up' xs
 
 
 let find_routes wires width height boxes =
@@ -203,4 +237,4 @@ let find_routes wires width height boxes =
   place_morphisms (box_size) (scale_up' boxes);
   printf "Width:\t\t\t%i\nHeight:\t\t\t%i\n" width' height';
   printf "Box size:\t\t%i\n" box_size;
-  scale_up wires |> find_route |> List.map (List.map scale_down )
+  scale_up wires |> find_route |> List.map (List.map coord_of_string) |> List.map (List.map scale_down )
