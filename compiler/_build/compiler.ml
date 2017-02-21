@@ -344,5 +344,5 @@ let compile_program = function
           print_links_list links_list';
           let paths = Bitmap.find_routes links_list'' (10) (3) box_list in
           let string_drawing_of_wires = List.map draw paths |> List.fold_left (^) ""  in
-          let whole = prefix  ^ body ^ string_drawing_of_wires  ^ suffix in
+          let whole = prefix  ^ styling ^ body ^ string_drawing_of_wires  ^ suffix in
           whole

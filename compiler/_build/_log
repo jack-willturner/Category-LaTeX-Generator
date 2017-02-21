@@ -8,13 +8,13 @@ ocamlfind ocamlc -c -o ast.cmo ast.ml # cached
 # Target: compiler.ml.depends, tags: { extension:ml, file:compiler.ml, ocaml, ocamldep, quiet }
 ocamlfind ocamldep -modules compiler.ml > compiler.ml.depends # cached
 # Target: bitmap.ml.depends, tags: { extension:ml, file:bitmap.ml, ocaml, ocamldep, quiet }
-ocamlfind ocamldep -modules bitmap.ml > bitmap.ml.depends
+ocamlfind ocamldep -modules bitmap.ml > bitmap.ml.depends # cached
 # Target: PrioQueue.ml.depends, tags: { extension:ml, file:PrioQueue.ml, ocaml, ocamldep, quiet }
 ocamlfind ocamldep -modules PrioQueue.ml > PrioQueue.ml.depends # cached
 # Target: PrioQueue.cmo, tags: { byte, compile, extension:cmo, extension:ml, file:PrioQueue.cmo, file:PrioQueue.ml, implem, ocaml, quiet }
 ocamlfind ocamlc -c -o PrioQueue.cmo PrioQueue.ml # cached
 # Target: bitmap.cmo, tags: { byte, compile, extension:cmo, extension:ml, file:bitmap.cmo, file:bitmap.ml, implem, ocaml, quiet }
-ocamlfind ocamlc -c -o bitmap.cmo bitmap.ml
+ocamlfind ocamlc -c -o bitmap.cmo bitmap.ml # cached
 # Target: compiler.cmo, tags: { byte, compile, extension:cmo, extension:ml, file:compiler.cmo, file:compiler.ml, implem, ocaml, quiet }
 ocamlfind ocamlc -c -o compiler.cmo compiler.ml # cached
 # Target: lexer.mll, tags: { extension:mll, file:lexer.mll, lexer, ocaml, ocamllex, quiet }
@@ -38,7 +38,7 @@ ocamlfind ocamlopt -c -o ast.cmx ast.ml # cached
 # Target: PrioQueue.cmx, tags: { compile, extension:cmx, extension:ml, file:PrioQueue.cmx, file:PrioQueue.ml, implem, native, ocaml, quiet }
 ocamlfind ocamlopt -c -o PrioQueue.cmx PrioQueue.ml # cached
 # Target: bitmap.cmx, tags: { compile, extension:cmx, extension:ml, file:bitmap.cmx, file:bitmap.ml, implem, native, ocaml, quiet }
-ocamlfind ocamlopt -c -o bitmap.cmx bitmap.ml
+ocamlfind ocamlopt -c -o bitmap.cmx bitmap.ml # cached
 # Target: compiler.cmx, tags: { compile, extension:cmx, extension:ml, file:compiler.cmx, file:compiler.ml, implem, native, ocaml, quiet }
 ocamlfind ocamlopt -c -o compiler.cmx compiler.ml # cached
 # Target: parser.ml.depends, tags: { extension:ml, file:parser.ml, ocaml, ocamldep, quiet }
@@ -50,5 +50,5 @@ ocamlfind ocamlopt -c -o lexer.cmx lexer.ml # cached
 # Target: compiler_test.cmx, tags: { compile, extension:cmx, extension:ml, file:compiler_test.cmx, file:compiler_test.ml, implem, native, ocaml, quiet }
 ocamlfind ocamlopt -c -o compiler_test.cmx compiler_test.ml # cached
 # Target: compiler_test.native, tags: { dont_link_with, extension:native, file:compiler_test.native, link, native, ocaml, program, quiet }
-ocamlfind ocamlopt -linkpkg PrioQueue.cmx ast.cmx bitmap.cmx compiler.cmx parser.cmx lexer.cmx compiler_test.cmx -o compiler_test.native
+ocamlfind ocamlopt -linkpkg PrioQueue.cmx ast.cmx bitmap.cmx compiler.cmx parser.cmx lexer.cmx compiler_test.cmx -o compiler_test.native # cached
 # Compilation successful.

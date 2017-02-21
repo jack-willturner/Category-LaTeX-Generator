@@ -23,7 +23,7 @@ box <name> <{styling}> : <number of inputs> -> <number of outputs>
 ```
 For example:
 ```
-box f {boxshape = CIRCLE, boxcolour = RED} : 1 -> 3
+box f {boxcolour : RED; boxshape : CIRCLE} : 1 -> 3
 ```
 Box definitions must be separated by fullstops.
 
