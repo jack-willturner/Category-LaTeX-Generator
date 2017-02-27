@@ -93,7 +93,7 @@ let rec flatten_port_list = function
 let generate_inputs num_inputs x y = function
   | None ->
       let spacing = !box_size /. float (num_inputs + 1) in
-      let base = y -. (!pixel_b_size/.2.0) in
+      let base = y -. (!pixel_b_size) in
       for i = 1 to (num_inputs ) do
         let from_x = x  |> string_of_float in
         let from_y = base +. float i *. spacing |> string_of_float in
@@ -110,7 +110,7 @@ let generate_inputs num_inputs x y = function
           let flat_list = flatten_port_list xs in
           let num_inputs = List.length flat_list in
           let spacing = !box_size /. float (num_inputs + 1) in
-          let base = y -. (!pixel_b_size/.float(2)) in
+          let base = y -. (!pixel_b_size) in
           for i = 0 to (List.length flat_list - 1) do
             let curr_input = List.nth flat_list i in
             let from_x = x  |> string_of_float in
@@ -133,7 +133,7 @@ let generate_inputs num_inputs x y = function
 
 let generate_outputs num_outputs x y = function
   | None ->
-      let base = y -. (!pixel_b_size/.float(2)) in
+      let base = y -. (!pixel_b_size) in
       let spacing' = !box_size /. (float(num_outputs + 1)) in
       for i = 1 to (num_outputs) do
         let from_x = x +. !box_spacing +. !pixel_b_size |> string_of_float in
@@ -152,7 +152,7 @@ let generate_outputs num_outputs x y = function
           let flat_list = flatten_port_list xs in
           let num_outputs = List.length flat_list in
           let spacing = !box_size /. float (num_outputs + 1) in
-          let base = y -. (!pixel_b_size/.float(2)) in
+          let base = y -. (!pixel_b_size) in
           for i = 0 to (List.length flat_list - 1) do
             let curr_input = List.nth flat_list i in
             let from_x = x +. !box_spacing +. !pixel_b_size |> string_of_float in
@@ -287,7 +287,7 @@ let rec getNodeLocations = function
                     let (from_nx', from_ny') = ((from_nx |>float_of_string),(from_ny |> float_of_string)) in
                     let (to_nx, to_ny)       = (Hashtbl.find nodes y) in
                     let (to_nx', to_ny')     = ((to_nx   |>float_of_string),(to_ny   |> float_of_string)) in
-    ((to_nx',to_ny'),(from_nx', from_ny') ) :: (getNodeLocations xs)
+    ((from_nx', from_ny'),(to_nx',to_ny') ) :: (getNodeLocations xs)
 
 let path_suffix corners = match corners with
   | []        -> ";"

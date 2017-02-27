@@ -208,10 +208,10 @@ let rec search start goal fringe visited = match fringe with
 let reset_costs = Hashtbl.iter (fun n {name;xLoc;yLoc;status;successors;cost;parent} ->  Hashtbl.replace graph n {name;xLoc;yLoc;status;successors;cost=0;parent=""}) graph
 
 let free_coord (x,y) =
-    for i = x to (x+5) do
+    for i = x to (x+3) do
       let c = string_of_coord i y in
       let {name;xLoc;yLoc;status;successors;cost;parent} = Hashtbl.find graph c in
-                   Hashtbl.replace graph c {name;xLoc;yLoc;status = Free;successors;cost;parent}
+      Hashtbl.replace graph c {name;xLoc;yLoc;status = Free;successors;cost;parent}
     done
 
 
@@ -220,7 +220,7 @@ let rec find_route = function
   | ((from_x, from_y),(to_x,to_y))::xs ->
     printf "Linking x to y:\t\t (%i,%i) -- (%i,%i)\n" from_x from_y to_x to_y;
     free_coord (from_x, from_y);
-    free_coord ((to_x - 5), to_y);
+    free_coord ((to_x - 3), to_y);
     let goal = string_of_coord to_x to_y in
     let start = string_of_coord from_x from_y in
     let fringe = expand start [] in
