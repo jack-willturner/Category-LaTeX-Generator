@@ -115,7 +115,7 @@ let generate_inputs num_inputs x y = function
             let curr_input = List.nth flat_list i in
             let from_x = x  |> string_of_float in
             let from_y = base +. float (i+1) *. spacing |> string_of_float in
-            let to_x = x  +. (!box_spacing) |> string_of_float in
+            let to_x = x +. (!box_spacing) -. (!pixel_b_size)|> string_of_float in
             let to_y = from_y in
             ( match curr_input with
               | Number n ->
@@ -156,10 +156,10 @@ let generate_outputs num_outputs x y = function
           let base = y -. (!pixel_b_size/.float(2)) in
           for i = 0 to (List.length flat_list - 1) do
             let curr_input = List.nth flat_list i in
-            let from_x = x +. !pixel_b_size                   |> string_of_float in
-            let from_y = base +. float (i+1) *. spacing   |> string_of_float in
-            let to_x = (x +. !pixel_b_size) +. (!box_spacing /. 2.0)    |> string_of_float in
-            let to_y = from_y in
+            let from_x = x +. !box_spacing +. !pixel_b_size |> string_of_float in
+            let from_y = base +. float (i+1) *. spacing |> string_of_float in
+            let to_x   = x +. !box_spacing +. !pixel_b_size +. (!box_spacing /. 2.0) |> string_of_float in
+            let to_y   = from_y in
             ( match curr_input with
               | Number n ->
                   "\t\\draw[black] \t(" ^ from_x ^","^ from_y ^ ") -- (" ^ to_x ^ "," ^  to_y ^ ");\n" |> Buffer.add_string temporary
@@ -285,10 +285,10 @@ let rec extract_boxes ms bs = match (ms, bs) with
 
 let rec getNodeLocations = function
   | []                         -> []
-  | ((x, y)::xs) -> let (from_nx,from_ny) = (Hashtbl.find nodes x) in
+  | ((x, y)::xs) -> let (from_nx,from_ny)    = (Hashtbl.find nodes x) in
                     let (from_nx', from_ny') = ((from_nx |>float_of_string),(from_ny |> float_of_string)) in
-                    let (to_nx, to_ny)    = (Hashtbl.find nodes y) in
-                    let (to_nx', to_ny') = ((to_nx |>float_of_string),(to_ny |> float_of_string)) in
+                    let (to_nx, to_ny)       = (Hashtbl.find nodes y) in
+                    let (to_nx', to_ny')     = ((to_nx   |>float_of_string),(to_ny   |> float_of_string)) in
     ((to_nx',to_ny'),(from_nx', from_ny') ) :: (getNodeLocations xs)
 
 let path_suffix corners = match corners with
@@ -343,7 +343,7 @@ let compile_program = function
           print_links_list links_list';
 
 
-          let paths = Bitmap.find_routes links_list' 15 8 box_list in
+          let paths = Bitmap.find_routes links_list' 15 8 (!box_size *. 10.0) box_list in
           let string_drawing_of_wires = List.map draw paths |> List.fold_left (^) ""  in
           let whole = styling ^ (prefix !box_size)  ^ body ^ string_drawing_of_wires  ^ suffix in
           whole

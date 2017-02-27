@@ -87,11 +87,14 @@ let block_coord coord =
 let rec place_morphisms box_size = function
   | []              -> ()
   | (x,y)::xs  ->
-    printf "PLACING MORPHISM AT (%i,%i)\n" x y;
+
+    let x' = x - (box_size / 2) in
+    let y' = y - (box_size / 2) in
+    printf "PLACING MORPHISM AT (%i,%i)\n" x' y';
     (* assume x y have been scaled and represent the left-bottom-aligned origin of the box *)
     (* now we mark the every node as occupied in the hashtable *)
-    for i = x to (x+box_size) do
-      for j = y to (y+box_size) do
+    for i = (x'-2) to (x'+box_size+2) do
+      for j = (y'-2) to (y'+box_size+2) do
           string_of_coord i j |> block_coord  (* type unit *)
       done;
     done;
@@ -135,27 +138,25 @@ let rec strategy' oldf newf visited goal = match newf with
                  strategy' (PrioQueue.insert oldf (manhattan_dist + cost) x visited) xs visited goal
 
 let scale_down box_size (x,y) =
-       let x' = float (x) /. 10.0   in
-       let y' = float (y)  /. 10.0 -. 0.9 in
+       let x' = float (x) /. 10.0 in
+       let y' = float (y) /. 10.0 in
        (x',y')
 
 
 let rec scale_up box_size = function
  | []                  -> []
- | ((x,y),(x',y'))::xs -> let xx =   x *. 10.0                     |> int_of_float in
-                          let yy =   (y +. (box_size/.10.0)) *. 10.0            |> int_of_float in        (* raise everything by one box *)
-                          let xx' = (x' *. 10.0)                   |> int_of_float in
-                          let yy' =  (y' +. (box_size/.10.0)) *. 10.0           |> int_of_float in        (* raise everything by one box *)
+ | ((x,y),(x',y'))::xs -> let xx  =  x  *. 10.0           |> int_of_float in
+                          let yy  =  y  *. 10.0           |> int_of_float in
+                          let xx' =  x' *. 10.0           |> int_of_float in
+                          let yy' =  y' *. 10.0           |> int_of_float in
                           ((xx,yy),(xx',yy')):: scale_up box_size xs
-
-(* \draw[black,rounded corners=3pt] (3.25,0.208) -- (3.5,0.208) -- (4, 0.8) -- (7.5, 0.8) -- (8,0.208) -- (8.5,0.208) *)
 
 
 (* THIS SCALES UP BOXES, NOT WIRES *)
 let rec scale_up' box_size = function
 | []                  -> []
 | (x,y)::xs -> let xx = int_of_float (x *. 10.0) in
-               let yy = (y +. 0.6 +. 0.3) *. 10.0  |> int_of_float in
+               let yy = y *. 10.0  |> int_of_float in
                ((xx,yy)):: scale_up' box_size xs
 
 
@@ -197,34 +198,6 @@ let rec reconstruct_path elt goal =
             let ({name;xLoc;yLoc;status;successors;cost;parent}) = Hashtbl.find graph elt in
             name :: reconstruct_path parent goal
 
-
-(*
-let g neighbour goal =
-    let (node_x,node_y) = coord_of_string neighbour in
-    let (goal_x,goal_y) = coord_of_string goal in
-    abs(node_x - goal_x) + abs(node_y - goal_y)
-
-let rec f curr open_set closed_set goal = function
-  (match successors with
-    | []            -> [[],[]]
-    | neighbour::xs ->
-        let cost = g(current) + movement_cost(current, neighbour) in
-        if PrioQueue.contains neighbour open_set && cost < (g neighbour goal) then
-          ((PrioQueue.remove neighbour open_set),parents):: f xs
-        else if List.mem neighbour closed_set' && cost < (g neighbour goal) then
-          a_star_search open_set (remove neighbour closed_set') parents goal  (* never happens if heuristic is admissable - TODO Test *)
-        else
-          a_star_search (strategy' open_set neighbour closed_set' goal) closed_set' ((neighbour,name)::parents) goal )
-
-let rec a_star_search open_set closed_set parents goal = match open_set with
-  | PrioQueue.Empty -> failwith "no route"
-  | PrioQueue.Node(prio,curr,left,right) ->
-        let closed_set' = curr :: closed_set in
-        let ({name;xLoc;yLoc;status;successors}) = Hashtbl.find graph curr in
-        let (open_set', parents) =
-*)
-
-
 let rec search start goal fringe visited = match fringe with
   | PrioQueue.Empty    -> failwith "No route exists"
   | PrioQueue.Node(prio,x,left,right) ->
@@ -236,15 +209,20 @@ let rec search start goal fringe visited = match fringe with
 
 let reset_costs = Hashtbl.iter (fun n {name;xLoc;yLoc;status;successors;cost;parent} ->  Hashtbl.replace graph n {name;xLoc;yLoc;status;successors;cost=0;parent=""}) graph
 
-let free_coord c = let {name;xLoc;yLoc;status;successors;cost;parent} = Hashtbl.find graph c in
+let free_coord (x,y) =
+    for i = x to (x+5) do
+      let c = string_of_coord i y in
+      let {name;xLoc;yLoc;status;successors;cost;parent} = Hashtbl.find graph c in
                    Hashtbl.replace graph c {name;xLoc;yLoc;status = Free;successors;cost;parent}
+    done
+
 
 let rec find_route = function
   | []    -> [[]]
   | ((from_x, from_y),(to_x,to_y))::xs ->
     printf "Linking x to y:\t\t (%i,%i) -- (%i,%i)\n" from_x from_y to_x to_y;
-    free_coord (string_of_coord from_x from_y);
-    free_coord (string_of_coord to_x to_y);
+    free_coord (from_x, from_y);
+    free_coord ((to_x - 5), to_y);
     let goal = string_of_coord to_x to_y in
     let start = string_of_coord from_x from_y in
     let fringe = expand start [] in
@@ -260,9 +238,9 @@ let rec find_route = function
     route :: find_route xs
 
 
-let find_routes wires width height boxes =
+let find_routes wires width height bx_size boxes =
   let width'   = width  * 10 in
-  let box_size = (*width' / (List.length boxes) / 2 in *) 6 in
+  let box_size = int_of_float bx_size in
   let height'  = height * 10 + box_size  in
   generate_adjacency_lists (width') (height');
   place_morphisms (box_size) (scale_up' box_size boxes);

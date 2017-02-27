@@ -6,15 +6,17 @@ ocamlfind ocamldep -modules ast.ml > ast.ml.depends # cached
 # Target: ast.cmo, tags: { byte, compile, extension:cmo, extension:ml, file:ast.cmo, file:ast.ml, implem, ocaml, quiet }
 ocamlfind ocamlc -c -o ast.cmo ast.ml # cached
 # Target: compiler.ml.depends, tags: { extension:ml, file:compiler.ml, ocaml, ocamldep, quiet }
-ocamlfind ocamldep -modules compiler.ml > compiler.ml.depends
+ocamlfind ocamldep -modules compiler.ml > compiler.ml.depends # cached
 # Target: bitmap.ml.depends, tags: { extension:ml, file:bitmap.ml, ocaml, ocamldep, quiet }
-ocamlfind ocamldep -modules bitmap.ml > bitmap.ml.depends # cached
+ocamlfind ocamldep -modules bitmap.ml > bitmap.ml.depends
 # Target: PrioQueue.ml.depends, tags: { extension:ml, file:PrioQueue.ml, ocaml, ocamldep, quiet }
 ocamlfind ocamldep -modules PrioQueue.ml > PrioQueue.ml.depends # cached
 # Target: PrioQueue.cmo, tags: { byte, compile, extension:cmo, extension:ml, file:PrioQueue.cmo, file:PrioQueue.ml, implem, ocaml, quiet }
 ocamlfind ocamlc -c -o PrioQueue.cmo PrioQueue.ml # cached
 # Target: bitmap.cmo, tags: { byte, compile, extension:cmo, extension:ml, file:bitmap.cmo, file:bitmap.ml, implem, ocaml, quiet }
-ocamlfind ocamlc -c -o bitmap.cmo bitmap.ml # cached
+ocamlfind ocamlc -c -o bitmap.cmo bitmap.ml
+# Target: compiler.cmo, tags: { byte, compile, extension:cmo, extension:ml, file:compiler.cmo, file:compiler.ml, implem, ocaml, quiet }
+ocamlfind ocamlc -c -o compiler.cmo compiler.ml # cached
 # Target: lexer.mll, tags: { extension:mll, file:lexer.mll, lexer, ocaml, ocamllex, quiet }
 ocamllex.opt -q lexer.mll # cached
 # Target: lexer.ml.depends, tags: { extension:ml, file:lexer.ml, ocaml, ocamldep, quiet }
@@ -29,27 +31,6 @@ ocamlfind ocamldep -modules parser.mli > parser.mli.depends # cached
 ocamlfind ocamlc -c -o parser.cmi parser.mli # cached
 # Target: lexer.cmo, tags: { byte, compile, extension:cmo, extension:ml, file:lexer.cmo, file:lexer.ml, implem, ocaml, quiet }
 ocamlfind ocamlc -c -o lexer.cmo lexer.ml # cached
-# Target: compiler.cmo, tags: { byte, compile, extension:cmo, extension:ml, file:compiler.cmo, file:compiler.ml, implem, ocaml, quiet }
-ocamlfind ocamlc -c -o compiler.cmo compiler.ml
-+ ocamlfind ocamlc -c -o compiler.cmo compiler.ml
-File "compiler.ml", line 179, characters 16-202:
-Warning 8: this pattern-matching is not exhaustive.
-Here is an example of a case that is not matched:
-Subdiagram (_, _, _)
-File "compiler.ml", line 185, characters 17-160:
-Warning 8: this pattern-matching is not exhaustive.
-Here is an example of a case that is not matched:
-Subdiagram (_, _, _)
-File "compiler.ml", line 191, characters 17-162:
-Warning 8: this pattern-matching is not exhaustive.
-Here is an example of a case that is not matched:
-Subdiagram (_, _, _)
-File "compiler.ml", line 237, characters 6-92:
-Warning 10: this expression should have type unit.
-File "compiler.ml", line 313, characters 18-20:
-Warning 26: unused variable gy.
-File "compiler.ml", line 313, characters 15-17:
-Warning 26: unused variable gx.
 # Target: compiler_test.cmo, tags: { byte, compile, extension:cmo, extension:ml, file:compiler_test.cmo, file:compiler_test.ml, implem, ocaml, quiet }
 ocamlfind ocamlc -c -o compiler_test.cmo compiler_test.ml # cached
 # Target: ast.cmx, tags: { compile, extension:cmx, extension:ml, file:ast.cmx, file:ast.ml, implem, native, ocaml, quiet }
@@ -57,34 +38,15 @@ ocamlfind ocamlopt -c -o ast.cmx ast.ml # cached
 # Target: PrioQueue.cmx, tags: { compile, extension:cmx, extension:ml, file:PrioQueue.cmx, file:PrioQueue.ml, implem, native, ocaml, quiet }
 ocamlfind ocamlopt -c -o PrioQueue.cmx PrioQueue.ml # cached
 # Target: bitmap.cmx, tags: { compile, extension:cmx, extension:ml, file:bitmap.cmx, file:bitmap.ml, implem, native, ocaml, quiet }
-ocamlfind ocamlopt -c -o bitmap.cmx bitmap.ml # cached
+ocamlfind ocamlopt -c -o bitmap.cmx bitmap.ml
+# Target: compiler.cmx, tags: { compile, extension:cmx, extension:ml, file:compiler.cmx, file:compiler.ml, implem, native, ocaml, quiet }
+ocamlfind ocamlopt -c -o compiler.cmx compiler.ml # cached
 # Target: parser.ml.depends, tags: { extension:ml, file:parser.ml, ocaml, ocamldep, quiet }
 ocamlfind ocamldep -modules parser.ml > parser.ml.depends # cached
 # Target: parser.cmx, tags: { compile, extension:cmx, extension:ml, file:parser.cmx, file:parser.ml, implem, native, ocaml, quiet }
 ocamlfind ocamlopt -c -o parser.cmx parser.ml # cached
 # Target: lexer.cmx, tags: { compile, extension:cmx, extension:ml, file:lexer.cmx, file:lexer.ml, implem, native, ocaml, quiet }
 ocamlfind ocamlopt -c -o lexer.cmx lexer.ml # cached
-# Target: compiler.cmx, tags: { compile, extension:cmx, extension:ml, file:compiler.cmx, file:compiler.ml, implem, native, ocaml, quiet }
-ocamlfind ocamlopt -c -o compiler.cmx compiler.ml
-+ ocamlfind ocamlopt -c -o compiler.cmx compiler.ml
-File "compiler.ml", line 179, characters 16-202:
-Warning 8: this pattern-matching is not exhaustive.
-Here is an example of a case that is not matched:
-Subdiagram (_, _, _)
-File "compiler.ml", line 185, characters 17-160:
-Warning 8: this pattern-matching is not exhaustive.
-Here is an example of a case that is not matched:
-Subdiagram (_, _, _)
-File "compiler.ml", line 191, characters 17-162:
-Warning 8: this pattern-matching is not exhaustive.
-Here is an example of a case that is not matched:
-Subdiagram (_, _, _)
-File "compiler.ml", line 237, characters 6-92:
-Warning 10: this expression should have type unit.
-File "compiler.ml", line 313, characters 18-20:
-Warning 26: unused variable gy.
-File "compiler.ml", line 313, characters 15-17:
-Warning 26: unused variable gx.
 # Target: compiler_test.cmx, tags: { compile, extension:cmx, extension:ml, file:compiler_test.cmx, file:compiler_test.ml, implem, native, ocaml, quiet }
 ocamlfind ocamlopt -c -o compiler_test.cmx compiler_test.ml # cached
 # Target: compiler_test.native, tags: { dont_link_with, extension:native, file:compiler_test.native, link, native, ocaml, program, quiet }
