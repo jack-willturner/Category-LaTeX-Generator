@@ -1,33 +1,4 @@
 box f{boxcolour : RED; boxshape : CIRCLE} : 1 -> 2.
 box g : 1 -> 1.
 box h : 2 -> 1
-link x y. f[1,x] ; g ; [1,y]h
-
-(*
-STAGE 1:
-    f : i1
-        o1, o2, o3
-
-    g : i2, i3, i4
-        o4
-
-STAGE 2:
-    y -> b
-    z -> c
-    x -> a
-
-STAGE 3:
-    f : i1
-        x, y, z
-    g : a, b, c
-        o4
-*)
-
-(*
-          -----[g]-----
-          |
----[f]----
-          |
-          -----[h]-----
-
-*)
+link x y. g[x] ; g ; g ; [y]g ; g ; g
