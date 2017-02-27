@@ -92,7 +92,7 @@ let rec flatten_port_list = function
 
 let generate_inputs num_inputs x y = function
   | None ->
-      let spacing = !pixel_b_size /. float (num_inputs + 1) in
+      let spacing = !box_size /. float (num_inputs + 1) in
       let base = y -. (!pixel_b_size/.2.0) in
       for i = 1 to (num_inputs ) do
         let from_x = x  |> string_of_float in
@@ -109,7 +109,7 @@ let generate_inputs num_inputs x y = function
       | xs ->
           let flat_list = flatten_port_list xs in
           let num_inputs = List.length flat_list in
-          let spacing = !pixel_b_size /. float (num_inputs + 1) in
+          let spacing = !box_size /. float (num_inputs + 1) in
           let base = y -. (!pixel_b_size/.float(2)) in
           for i = 0 to (List.length flat_list - 1) do
             let curr_input = List.nth flat_list i in
@@ -131,11 +131,10 @@ let generate_inputs num_inputs x y = function
           Buffer.clear temporary;
           some_inputs)
 
-
 let generate_outputs num_outputs x y = function
   | None ->
       let base = y -. (!pixel_b_size/.float(2)) in
-      let spacing' = !pixel_b_size /. (float(num_outputs + 1)) in
+      let spacing' = !box_size /. (float(num_outputs + 1)) in
       for i = 1 to (num_outputs) do
         let from_x = x +. !box_spacing +. !pixel_b_size |> string_of_float in
         let from_y = base +. float i *. spacing' |> string_of_float in
@@ -152,7 +151,7 @@ let generate_outputs num_outputs x y = function
       | xs ->
           let flat_list = flatten_port_list xs in
           let num_outputs = List.length flat_list in
-          let spacing = !pixel_b_size /. float (num_outputs + 1) in
+          let spacing = !box_size /. float (num_outputs + 1) in
           let base = y -. (!pixel_b_size/.float(2)) in
           for i = 0 to (List.length flat_list - 1) do
             let curr_input = List.nth flat_list i in
@@ -174,7 +173,6 @@ let generate_outputs num_outputs x y = function
           let some_outputs = Buffer.contents temporary in
           Buffer.clear temporary;
           some_outputs)
-
 
 let rec width = function
   | Identity  -> 2.0

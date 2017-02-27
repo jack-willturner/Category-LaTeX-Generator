@@ -1,4 +1,4 @@
-box f{boxcolour : RED; boxshape : CIRCLE} : 1 -> 2.
+box f : 1 -> 2.
 box g : 1 -> 1.
 box h : 2 -> 1
-link x y. g[x] ; g ; g ; [y]g ; g ; g
+link . f ; g ; h

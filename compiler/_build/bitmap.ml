@@ -127,8 +127,6 @@ let rec expand vertex visited = let {name; xLoc; yLoc; status; successors; cost;
     done;
     new_successors
 
-let strategy oldf newf visited = remove (newf @ oldf) visited (* TODO - change this to priority queue *)
-
 let rec strategy' oldf newf visited goal = match newf with
   | []        -> oldf
   | x::xs     -> let (node_x,node_y) = coord_of_string x in
