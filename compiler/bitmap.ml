@@ -214,7 +214,6 @@ let free_coord (x,y) =
       Hashtbl.replace graph c {name;xLoc;yLoc;status = Free;successors;cost;parent}
     done
 
-
 let rec find_route = function
   | []    -> [[]]
   | ((from_x, from_y),(to_x,to_y))::xs ->

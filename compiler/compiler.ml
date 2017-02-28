@@ -11,6 +11,8 @@ let morphismLocations = Hashtbl.create 64         (* f | Point(x, y) *)
 let nodes             = Hashtbl.create 64         (* essentially link locations *)
 let temporary         = Buffer.create  64         (* temporary Buffer *)
 
+let ports = Hashtbl.create 64 
+
 let box_size     = ref 1.25
 let pixel_b_size = ref 0.62 (* always half of the box size since the boxes are placed from the centre *)
 let box_spacing  = ref 1.0
@@ -32,6 +34,14 @@ let prefix b_size = "\n\n\\tikzstyle{morphism}=[minimum size =" ^ (b_size |> str
 \\begin{tikzpicture}\n"
 
 let suffix  = "\\end {tikzpicture}\n\n"
+
+let rec generate_input_nodes = function
+  | 0 -> []
+  | n -> inputNode() :: generate_input_nodes (n-1)
+
+let rec generate_output_nodes = function
+  | 0 -> []
+  | n -> outputNode() :: generate_output_nodes (n-1)
 
 let rec update_morphism_table = function
   | []        -> ()
@@ -87,7 +97,7 @@ let rec flatten_port_list = function
   | x::xs ->
     ( match x with
         | Number x ->  (ones x) @ (flatten_port_list xs)
-        | String s ->  (String s) ::(flatten_port_list xs) 
+        | String s ->  (String s) ::(flatten_port_list xs)
       )
 
 let generate_inputs num_inputs x y = function
@@ -107,7 +117,7 @@ let generate_inputs num_inputs x y = function
   | Some(ins) -> ( match (type_inputs ins) with
       | [] -> ""
       | xs ->
-          let flat_list = flatten_port_list xs  in
+          let flat_list = flatten_port_list xs |> List.rev in
           let num_inputs = List.length flat_list in
           let spacing = !box_size /. float (num_inputs + 1) in
           let base = y -. (!pixel_b_size) in
@@ -140,6 +150,8 @@ let generate_outputs num_outputs x y = function
         let from_y = base +. float i *. spacing' |> string_of_float in
         let to_x   = x +. !box_spacing +. !pixel_b_size +. (!box_spacing /. 2.0) |> string_of_float in
         let to_y   = from_y in
+        let n      = outputNode() in
+        Hashtbl.add nodes n (from_x, from_y)
         "\t\\draw[black] \t(" ^ from_x ^","^ from_y ^ ") -- (" ^ to_x ^ "," ^  to_y ^ ");\n" |> Buffer.add_string temporary
       done;
       let wire_drawing = Buffer.contents temporary in
@@ -149,7 +161,7 @@ let generate_outputs num_outputs x y = function
     (match (type_inputs outs) with
       | [] -> ""
       | xs ->
-          let flat_list = flatten_port_list xs  in
+          let flat_list = flatten_port_list xs  |> List.rev in
           let num_outputs = List.length flat_list in
           let spacing = !box_size /. float (num_outputs + 1) in
           let base = y -. (!pixel_b_size) in
@@ -161,6 +173,8 @@ let generate_outputs num_outputs x y = function
             let to_y   = from_y in
             ( match curr_input with
               | Number n ->
+                  let n = outputNode() in
+                  Hashtbl.add nodes n (from_x, from_y)
                   "\t\\draw[black] \t(" ^ from_x ^","^ from_y ^ ") -- (" ^ to_x ^ "," ^  to_y ^ ");\n" |> Buffer.add_string temporary
               | String s ->
                 if Hashtbl.mem nodes s then
@@ -197,6 +211,34 @@ let draw_morphism m x y styles =
     ("\t\\node[" ^ m ^ "] (" ^ m ^ ")\tat (" ^ (x|>string_of_float) ^ "," ^ (y|>string_of_float) ^ ")\t\t{$" ^ m ^"$};\n")
   else
     ("\t\\node[morphism] (" ^ m ^ ")\tat (" ^ (x|>string_of_float) ^ "," ^ (y|>string_of_float) ^ ")\t\t{$" ^ m ^"$};\n")
+
+let rec fix_inputs = function
+  | [] -> []
+  | x::xs ->
+    (match x with
+      | None   -> inputNode() :: fix_inputs xs
+      | Some p -> (match p with
+                    | Number n -> generate_input_nodes n @ fix_inputs xs
+                    | String s -> s :: fix_inputs xs))
+
+let fix_outputs = function
+  | [] -> []
+  | x::xs -> (match x with
+    | None   -> outputNode() :: fix_outputs xs
+    | Some p -> (match p with
+                  | Number n -> generate_input_nodes n @ fix_outputs xs
+                  | String s -> s :: fix_outputs xs))
+
+let rec replace_morphism_ports =
+  | Identity                  -> Identity
+  | Morphism (m,ins,outs)     ->
+    let ins' = fix_inputs ins in
+    let outs' = fix_outputs outs in
+    Hashtbl.add ports m (ins',outs');
+    Morphism(m,ins',outs')
+  | Tensor(a,b)               -> Tensor((replace_morphism_ports a),(replace_morphism_ports b))
+  | Composition(f,g)          -> Composition((replace_morphism_ports f),(replace_morphism_ports g))
+  | Subdiagram(diagram,ins,outs) -> Subdiagram((replace_morphism_ports diagram),ins,outs)
 
 let rec draw_structurally x y tree styles =
   (* Create a grid of max_width * max_height *)
@@ -260,7 +302,7 @@ let rec get_boxes_with_styling = function
   | (Box (b,_, _, style))::xs -> (match style with
                                     | None -> get_boxes_with_styling xs
                                     | Some(s) -> b :: get_boxes_with_styling xs)
-(*)
+(*
 let rec rename_morphs = function
   | Identity                -> Identity
   | Morphism(name,ins,outs) -> let new_name = ((morphism()) ^ name) in
@@ -288,7 +330,7 @@ let rec getNodeLocations = function
                     let (from_nx', from_ny') = ((from_nx |>float_of_string),(from_ny |> float_of_string)) in
                     let (to_nx, to_ny)       = (Hashtbl.find nodes y) in
                     let (to_nx', to_ny')     = ((to_nx   |>float_of_string),(to_ny   |> float_of_string)) in
-    ((from_nx', from_ny'),(to_nx',to_ny') ) :: (getNodeLocations xs)
+    ((to_nx',to_ny'),(from_nx', from_ny') ) :: (getNodeLocations xs)
 
 let path_suffix corners = match corners with
   | []        -> ";"
@@ -316,7 +358,6 @@ let print_links_list = function
   | [] -> ()
   | ((x,y),(x',y'))::xs -> printf "Link x to y:\t\t (%f,%f) -- (%f,%f)\n" x y x' y'
 
-
 let compile_program = function
   | Program(module_list, def_list, diag) ->
           let w = width' diag in
@@ -327,13 +368,16 @@ let compile_program = function
             pixel_b_size := !box_size *. 0.5;
             box_spacing  := !box_size *. 1.2;
 
+
+          (* preprocessing *)
           let boxes = extract_boxes module_list def_list in
           let boxes_with_styling = get_boxes_with_styling boxes in
           let styling = boxes |> List.map add_styles |> List.fold_left (^) "" in
           update_morphism_table (unwrap_def_list def_list);
+          let fixed_diag = replace_morphism_ports diag in
 
 
-          let body = (draw_structurally 0.0 5.0 diag boxes_with_styling)  in
+          let body = (draw_structurally 0.0 5.0 fixed_diag boxes_with_styling)  in
           let links_list = (Hashtbl.fold (fun k v acc -> (k, v) :: acc) links [])  in (* (string * string) list *)
           let box_list   = (Hashtbl.fold (fun k v acc -> (get_coords v) :: acc) morphismLocations [])  in
           let links_list' = getNodeLocations links_list in
@@ -342,7 +386,7 @@ let compile_program = function
           print_links_list links_list';
 
 
-          let paths = Bitmap.find_routes links_list' 15 8 (!box_size *. 10.0) box_list in
+          let paths = Bitmap.find_routes links_list' 15 15 (!box_size *. 10.0) box_list in
           let string_drawing_of_wires = List.map draw paths |> List.fold_left (^) ""  in
           let whole = styling ^ (prefix !box_size)  ^ body ^ string_drawing_of_wires  ^ suffix in
           whole
