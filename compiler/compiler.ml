@@ -16,12 +16,12 @@ let pixel_b_size = ref 0.62 (* always half of the box size since the boxes are p
 let box_spacing  = ref 1.0
 
 let hiddenNodeCount = ref 0
-let morphismCount   = ref 100 (* extremely hacky - but reasonable to assume we will never have more than 99 nodes in a diagram given project scale*)
-let wireCount       = ref 100
+let inputNodeCount  = ref 0
+let outputNodeCount = ref 0
 
 let hiddenNode()       = hiddenNodeCount  := !hiddenNodeCount + 1; ("empty" ^ string_of_int(!hiddenNodeCount  - 1))
-let morphism()         = morphismCount    := !morphismCount   + 1; (string_of_int(!morphismCount    - 1))
-let wire()             = wireCount        := !morphismCount   + 1; (string_of_int(!wireCount -1))
+let inputNode()        = inputNodeCount   := !inputNodeCount  + 1; ("i" ^ string_of_int(!inputNodeCount - 1))
+let outputNode()       = outputNodeCount  := !outputNodeCount + 1; ("o" ^ string_of_int(!outputNodeCount - 1))
 
 type port =
   | Number of int
@@ -86,8 +86,8 @@ let rec flatten_port_list = function
   | [] -> []
   | x::xs ->
     ( match x with
-        | Number x -> (ones x) @ (flatten_port_list xs)
-        | String s -> (String s) :: (flatten_port_list xs)
+        | Number x ->  (ones x) @ (flatten_port_list xs)
+        | String s ->  (String s) ::(flatten_port_list xs) 
       )
 
 let generate_inputs num_inputs x y = function
@@ -107,7 +107,7 @@ let generate_inputs num_inputs x y = function
   | Some(ins) -> ( match (type_inputs ins) with
       | [] -> ""
       | xs ->
-          let flat_list = flatten_port_list xs in
+          let flat_list = flatten_port_list xs  in
           let num_inputs = List.length flat_list in
           let spacing = !box_size /. float (num_inputs + 1) in
           let base = y -. (!pixel_b_size) in
@@ -149,7 +149,7 @@ let generate_outputs num_outputs x y = function
     (match (type_inputs outs) with
       | [] -> ""
       | xs ->
-          let flat_list = flatten_port_list xs in
+          let flat_list = flatten_port_list xs  in
           let num_outputs = List.length flat_list in
           let spacing = !box_size /. float (num_outputs + 1) in
           let base = y -. (!pixel_b_size) in
@@ -260,7 +260,7 @@ let rec get_boxes_with_styling = function
   | (Box (b,_, _, style))::xs -> (match style with
                                     | None -> get_boxes_with_styling xs
                                     | Some(s) -> b :: get_boxes_with_styling xs)
-
+(*)
 let rec rename_morphs = function
   | Identity                -> Identity
   | Morphism(name,ins,outs) -> let new_name = ((morphism()) ^ name) in
@@ -274,6 +274,7 @@ let rec rename_morphs = function
   | Tensor(d1,d2)           -> Tensor(rename_morphs d1, rename_morphs d2)
   | Composition(d1,d2)      -> Composition(rename_morphs d1, rename_morphs d2)
   | Subdiagram(diagram, ins,outs)     -> Subdiagram(rename_morphs diagram, ins, outs)
+*)
 
 let rec extract_boxes ms bs = match (ms, bs) with
   | [], [] -> []
