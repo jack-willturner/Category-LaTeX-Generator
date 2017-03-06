@@ -11,7 +11,7 @@ let morphismLocations = Hashtbl.create 64         (* f | Point(x, y) *)
 let nodes             = Hashtbl.create 64         (* essentially link locations *)
 let temporary         = Buffer.create  64         (* temporary Buffer *)
 
-let ports = Hashtbl.create 64 
+let ports = Hashtbl.create 64
 
 let box_size     = ref 1.25
 let pixel_b_size = ref 0.62 (* always half of the box size since the boxes are placed from the centre *)
@@ -54,6 +54,10 @@ let rec type_inputs = function
   | x::xs     -> try let n = int_of_string x in (Number n):: (type_inputs xs)
                  with
                   | Failure int_of_string -> (String x) :: (type_inputs xs)
+
+let type_port x  = try let n = int_of_string x in (Number n)
+                   with
+                    | Failure int_of_string -> (String x)
 
 (* Function that takes 4 points, x y, x' y' and draws a line and then a rectangle between them. Then returns a list
    of morphisms in that space *)
@@ -100,6 +104,43 @@ let rec flatten_port_list = function
         | String s ->  (String s) ::(flatten_port_list xs)
       )
 
+let gen_inputs x y = function
+  | []    -> ()
+  | xs    ->
+            let spacing = !box_size /. float ((List.length xs) + 1) in
+            let base = y -. (!pixel_b_size) in
+            for i = 0 to (List.length xs - 1) do
+              let curr_input = List.nth xs i in
+              let from_x = x  |> string_of_float in
+              let from_y = base +. float (i+1) *. spacing |> string_of_float in
+              let to_x = x +. (!box_spacing) -. (!pixel_b_size)|> string_of_float in
+              let to_y = from_y in
+              (match curr_input with
+                | str -> Hashtbl.add nodes str (to_x, to_y)
+                | _   -> failwith "Unknown port type"
+              )
+            done
+
+let gen_outputs x y = function
+  | [] -> ()
+  | xs -> let flat_list = xs  in
+          let num_outputs = List.length flat_list in
+          let spacing = !box_size /. float (num_outputs + 1) in
+          let base = y -. (!pixel_b_size) in
+          for i = 0 to (List.length flat_list - 1) do
+            let curr_input = List.nth flat_list i in
+            let from_x = x +. !box_spacing +. !pixel_b_size |> string_of_float in
+            let from_y = base +. float (i+1) *. spacing |> string_of_float in
+            let to_x   = x +. !box_spacing +. !pixel_b_size +. (!box_spacing /. 2.0) |> string_of_float in
+            let to_y   = from_y in
+            ( match curr_input with
+              | str -> Hashtbl.add nodes str (from_x, from_y)
+              | _   -> failwith "Unknown output port type"
+            )
+          done
+
+
+(* Inputs are now of type [i1,i2,x] etc. *)
 let generate_inputs num_inputs x y = function
   | None ->
       let spacing = !box_size /. float (num_inputs + 1) in
@@ -151,7 +192,7 @@ let generate_outputs num_outputs x y = function
         let to_x   = x +. !box_spacing +. !pixel_b_size +. (!box_spacing /. 2.0) |> string_of_float in
         let to_y   = from_y in
         let n      = outputNode() in
-        Hashtbl.add nodes n (from_x, from_y)
+        Hashtbl.add nodes n (from_x, from_y);
         "\t\\draw[black] \t(" ^ from_x ^","^ from_y ^ ") -- (" ^ to_x ^ "," ^  to_y ^ ");\n" |> Buffer.add_string temporary
       done;
       let wire_drawing = Buffer.contents temporary in
@@ -174,7 +215,7 @@ let generate_outputs num_outputs x y = function
             ( match curr_input with
               | Number n ->
                   let n = outputNode() in
-                  Hashtbl.add nodes n (from_x, from_y)
+                  Hashtbl.add nodes n (from_x, from_y);
                   "\t\\draw[black] \t(" ^ from_x ^","^ from_y ^ ") -- (" ^ to_x ^ "," ^  to_y ^ ");\n" |> Buffer.add_string temporary
               | String s ->
                 if Hashtbl.mem nodes s then
@@ -201,9 +242,9 @@ let rec width' = function
   | Composition(a,b) -> width' a + width' b
 
 let rec height = function
-  | Identity -> 1.0
-  | Morphism(m,_,_) -> 2.0
-  | Tensor(a,b) -> height a +. height b
+  | Identity -> 1
+  | Morphism(m,_,_) -> 2
+  | Tensor(a,b) -> height a + height b
   | Composition(a,b) -> max (height a) (height b)
 
 let draw_morphism m x y styles =
@@ -212,33 +253,66 @@ let draw_morphism m x y styles =
   else
     ("\t\\node[morphism] (" ^ m ^ ")\tat (" ^ (x|>string_of_float) ^ "," ^ (y|>string_of_float) ^ ")\t\t{$" ^ m ^"$};\n")
 
-let rec fix_inputs = function
-  | [] -> []
-  | x::xs ->
-    (match x with
-      | None   -> inputNode() :: fix_inputs xs
-      | Some p -> (match p with
-                    | Number n -> generate_input_nodes n @ fix_inputs xs
-                    | String s -> s :: fix_inputs xs))
+let rec fix_inputs name = function
+  | None -> let (ins,outs) = Hashtbl.find morphisms name in
+            generate_input_nodes ins
+  | Some(xs) ->
+  (match xs with
+    | [] -> let (ins,outs) = Hashtbl.find morphisms name in
+              generate_input_nodes ins
+    | x::xs -> (match type_port x with
+                    | Number n -> generate_input_nodes n @ fix_inputs name (Some xs)
+                    | String s -> s :: fix_inputs name (Some xs) ))
 
-let fix_outputs = function
-  | [] -> []
-  | x::xs -> (match x with
-    | None   -> outputNode() :: fix_outputs xs
-    | Some p -> (match p with
-                  | Number n -> generate_input_nodes n @ fix_outputs xs
-                  | String s -> s :: fix_outputs xs))
 
-let rec replace_morphism_ports =
+let rec fix_outputs name = function
+  | None -> let (ins,outs) = Hashtbl.find morphisms name in
+            generate_output_nodes outs
+  | Some(xs) ->
+  (match xs with
+    | [] -> let (ins,outs) = Hashtbl.find morphisms name in
+              generate_output_nodes outs
+    | x::xs -> (match type_port x with
+                    | Number n -> generate_output_nodes n @ fix_outputs name (Some xs)
+                    | String s -> s :: fix_outputs name (Some xs) ))
+
+
+
+(* ins outs ::  ... None f None ... Some(1,x) f Some (1,y) ... *)
+let rec replace_morphism_ports = function
   | Identity                  -> Identity
   | Morphism (m,ins,outs)     ->
-    let ins' = fix_inputs ins in
-    let outs' = fix_outputs outs in
+    let ins'  = fix_inputs m ins in
+    let outs' = fix_outputs m outs in
     Hashtbl.add ports m (ins',outs');
-    Morphism(m,ins',outs')
+    Morphism(m,Some(ins'),Some(outs'))
   | Tensor(a,b)               -> Tensor((replace_morphism_ports a),(replace_morphism_ports b))
   | Composition(f,g)          -> Composition((replace_morphism_ports f),(replace_morphism_ports g))
   | Subdiagram(diagram,ins,outs) -> Subdiagram((replace_morphism_ports diagram),ins,outs)
+
+let list_of = function
+  | None -> []
+  | Some(xs) -> xs
+
+let rec getOutputs = function
+  | Identity             -> []
+  | Morphism(m,ins,outs) -> list_of outs
+  | Tensor(a,b)          -> getOutputs a @ getOutputs b
+  | Composition(f,g)     -> getOutputs g
+  | Subdiagram(diag,ins,outs) -> failwith "Not implemented: getOutputs of Subdiagram structure"
+
+let rec getInputs = function
+  | Identity             -> []
+  | Morphism(m,ins,outs) -> list_of ins
+  | Tensor(a,b)          -> getInputs a @ getInputs b
+  | Composition(f,g)     -> getInputs f
+  | Subdiagram(diag,ins,outs) -> failwith "Not implemented: getInputs of Subdiagram structure"
+
+let rec connect  = function
+  | [], [] -> ()
+  | [], xs -> ()
+  | xs, [] -> ()
+  | (o::os),(i::is) -> Hashtbl.add links o i; connect (os,is)
 
 let rec draw_structurally x y tree styles =
   (* Create a grid of max_width * max_height *)
@@ -253,10 +327,10 @@ let rec draw_structurally x y tree styles =
     | Morphism (m,ins,outs) ->
       let (num_inputs,num_outputs) = Hashtbl.find morphisms m in
       let morph   = draw_morphism m (x+.(!box_spacing)) y styles in
-      let inputs  = generate_inputs num_inputs x y ins in
-      let outputs = generate_outputs num_outputs x y outs in
+      gen_inputs  x y (list_of ins);
+      gen_outputs x y (list_of outs);
       Hashtbl.add morphismLocations m (Point((x+.(!box_spacing)), y));
-      morph ^ "\t% Inputs\n" ^ inputs ^ "\t%Outputs \n" ^ outputs ^  "\n"
+      morph ^  "\n"
     | Tensor(a,b)               ->
         let b' = draw_structurally x y b styles in
         let a' = draw_structurally x (y+.(!box_spacing *. 2.0)) a styles in
@@ -264,6 +338,10 @@ let rec draw_structurally x y tree styles =
     | Composition(f,g) ->
         let f' = draw_structurally x y f styles in
         let g' = draw_structurally (x+.(width f)) y g styles in
+        let outs = getOutputs f in
+        let ins  = getInputs g in
+        connect (outs, ins); (* just add the link to the link hashtbl *)
+        (* TODO NOTE : could put wire drawings here so that the TEX generates above the morphism and the wires draw completely *)
         f' ^ g'
     | Subdiagram(diagram,ins,outs) ->
         draw_structurally x y diagram styles
@@ -327,9 +405,9 @@ let rec extract_boxes ms bs = match (ms, bs) with
 let rec getNodeLocations = function
   | []                         -> []
   | ((x, y)::xs) -> let (from_nx,from_ny)    = (Hashtbl.find nodes x) in
-                    let (from_nx', from_ny') = ((from_nx |>float_of_string),(from_ny |> float_of_string)) in
+                    let (from_nx', from_ny') = ((from_nx |> float_of_string),(from_ny |> float_of_string)) in
                     let (to_nx, to_ny)       = (Hashtbl.find nodes y) in
-                    let (to_nx', to_ny')     = ((to_nx   |>float_of_string),(to_ny   |> float_of_string)) in
+                    let (to_nx', to_ny')     = ((to_nx   |> float_of_string),(to_ny   |> float_of_string)) in
     ((to_nx',to_ny'),(from_nx', from_ny') ) :: (getNodeLocations xs)
 
 let path_suffix corners = match corners with
@@ -352,7 +430,7 @@ let draw = function
   | [] -> "\n"
   | xs -> let (sx,sy) = List.hd xs in
           let (gx,gy) = List.rev xs |> List.hd in
-          path_prefix (sx,sy) ^ print_path (List.tl xs)
+          path_prefix (sx,sy) ^ print_path (List.tl xs) ^";\n"
 
 let print_links_list = function
   | [] -> ()
@@ -386,7 +464,7 @@ let compile_program = function
           print_links_list links_list';
 
 
-          let paths = Bitmap.find_routes links_list' 15 15 (!box_size *. 10.0) box_list in
+          let paths = Bitmap.find_routes links_list' 15 (height diag) (!box_size *. 10.0) box_list in
           let string_drawing_of_wires = List.map draw paths |> List.fold_left (^) ""  in
           let whole = styling ^ (prefix !box_size)  ^ body ^ string_drawing_of_wires  ^ suffix in
           whole
