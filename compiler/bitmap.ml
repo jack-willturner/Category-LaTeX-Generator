@@ -89,11 +89,11 @@ let rec place_morphisms box_size = function
 
     let x' = x - (box_size / 2) in
     let y' = y - (box_size / 2) in
-    printf "PLACING MORPHISM AT (%i,%i)\n" x' y';
+    (* printf "PLACING MORPHISM AT (%i,%i)\n" x' y'; *)
     (* assume x y have been scaled and represent the left-bottom-aligned origin of the box *)
     (* now we mark the every node as occupied in the hashtable *)
-    for i = (x') to (x'+box_size) do
-      for j = (y') to (y'+box_size) do
+    for i = (x' - 2) to (x'+box_size + 2) do
+      for j = (y' - 2) to (y'+box_size + 2) do
           string_of_coord i j |> block_coord  (* type unit *)
       done;
     done;
@@ -107,22 +107,25 @@ let rec clean = function
   | (Some x)::xs -> x :: clean xs
 
 let rec expand vertex visited = let {name; xLoc; yLoc; status; successors;parent} = Hashtbl.find graph vertex in
-      (*printf "Currently expanding %s with parent %s\n" name parent ; *)
-      let new_successors = (match status with
-          | Free                 -> clean [(List.nth successors 2);(List.nth successors 0);(List.nth successors 4); (List.nth successors 6)] |> remove visited
-          | OccupiedHorizontal   -> clean [(List.nth successors 0);(List.nth successors 4)] (* can only go up/down *)    |> remove visited
-          | OccupiedVertical     -> clean [(List.nth successors 2);(List.nth successors 5)] (* can only go left/right *) |> remove visited
-          | Blocked              -> [] ) in
-        for i = 0 to (List.length new_successors -1) do
-          let {name; xLoc; yLoc; status; successors;  parent} = Hashtbl.find graph (List.nth new_successors i) in
-          Hashtbl.replace graph (List.nth new_successors i) {name = name;
-                                                             xLoc = xLoc;
-                                                             yLoc = yLoc;
-                                                             status = status;
-                                                             successors = successors;
-                                                             parent = vertex}
-        done;
-        remove visited new_successors
+      if List.mem vertex visited then
+        []
+      else
+        (*printf "Currently expanding %s with parent %s\n" name parent ; *)
+        let new_successors = (match status with
+            | Free                 -> clean [(List.nth successors 2);(List.nth successors 0);(List.nth successors 4); (List.nth successors 6)] |> remove visited
+            | OccupiedHorizontal   -> clean [(List.nth successors 0);(List.nth successors 4)] (* can only go up/down *)    |> remove visited
+            | OccupiedVertical     -> clean [(List.nth successors 2);(List.nth successors 5)] (* can only go left/right *) |> remove visited
+            | Blocked              -> [] ) in
+          for i = 0 to (List.length new_successors -1) do
+            let {name; xLoc; yLoc; status; successors;  parent} = Hashtbl.find graph (List.nth new_successors i) in
+            Hashtbl.replace graph (List.nth new_successors i) {name = name;
+                                                               xLoc = xLoc;
+                                                               yLoc = yLoc;
+                                                               status = status;
+                                                               successors = successors;
+                                                               parent = vertex}
+          done;
+          remove visited new_successors
 
 let rec strategy' oldf newf visited goal cost_so_far = match newf with
   | []        -> oldf
@@ -137,7 +140,6 @@ let scale_down box_size (x,y) =
        let y' = float (y) /. 10.0 in
        (x',y')
 
-
 let rec scale_up box_size = function
  | []                  -> []
  | ((x,y),(x',y'))::xs -> let xx  =  x  *. 10.0           |> int_of_float in
@@ -145,7 +147,6 @@ let rec scale_up box_size = function
                           let xx' =  x' *. 10.0           |> int_of_float in
                           let yy' =  y' *. 10.0           |> int_of_float in
                           ((xx,yy),(xx',yy')):: scale_up box_size xs
-
 
 (* THIS SCALES UP BOXES, NOT WIRES *)
 let rec scale_up' box_size = function
@@ -188,7 +189,7 @@ let rec find elt ls = match ls with
 
 let rec reconstruct_path elt goal =
           if elt = goal then
-            []
+            [goal]
           else
             let ({name;xLoc;yLoc;status;successors;parent}) = Hashtbl.find graph elt in
             name :: reconstruct_path parent goal
@@ -198,45 +199,47 @@ let rec search start goal fringe visited cost = match fringe with
   | PrioQueue.Node(prio,x,left,right) ->
     let ({name;xLoc;yLoc;status;successors;parent}) = Hashtbl.find graph x in
     if goal = name then
-      reconstruct_path name start
+       reconstruct_path name start
     else
-      (search start goal (strategy' (PrioQueue.remove_top (PrioQueue.Node(prio,x,left,right))) (expand x (visited)) (x::visited) goal cost) (x::visited) (cost+1))
-
-(*let reset_costs = Hashtbl.iter (fun n {name;xLoc;yLoc;status;successors;parent} ->  Hashtbl.replace graph n {name;xLoc;yLoc;status;successors;cost=0;parent=""}) graph*)
+      (search start goal (strategy' (PrioQueue.remove_top (PrioQueue.Node(prio,x,left,right))) (expand x (visited)) (x::visited) goal cost) (x::visited) (cost+3))
 
 let free_coord (x,y) =
-    for i = x to (x) do
+    for i = x  to (x+3) do
       let c = string_of_coord i y in
-      let {name;xLoc;yLoc;status;successors;parent} = Hashtbl.find graph c in
+      try let {name;xLoc;yLoc;status;successors;parent} = Hashtbl.find graph c in
       Hashtbl.replace graph c {name;xLoc;yLoc;status = Free;successors;parent}
+      with
+        | Not_found -> failwith "Could not free coordinate"
     done
+
+let last ls = List.rev ls |> List.hd
 
 let rec find_route = function
   | []    -> [[]]
   | ((from_x, from_y),(to_x,to_y))::xs ->
     printf "Linking x to y:\t\t (%i,%i) -- (%i,%i)\n" from_x from_y to_x to_y;
     free_coord (from_x, from_y);
-    free_coord ((to_x - 3), to_y);
+    free_coord ((from_x - 3), from_y);
+    free_coord (to_x, to_y); (* always want to link left to right *)
+    free_coord ((to_x -3), to_y);
     let goal = string_of_coord to_x to_y in
     let start = string_of_coord from_x from_y in
     let fringe = expand start [] in
     for i = 0 to (List.length fringe - 1) do
       let {name;xLoc;yLoc;status;successors;parent} = Hashtbl.find graph (List.nth fringe i) in
-      let cost = 10 in
       Hashtbl.replace graph (List.nth fringe i) {name;xLoc;yLoc;status;successors;parent}
     done;
     let fringe' = strategy' PrioQueue.Empty fringe [] goal 0  in
     let route   = (search start goal fringe' [start] 0) in
-    print_path route;
-    route :: find_route xs
+    (route @ [start])  :: (find_route xs)
 
 
 let find_routes wires width height bx_size boxes =
-  let width'   = width  * 10 in (* width of the whole frame *) 
+  let width'   = width  * 10 in (* width of the whole frame *)
   let box_size = int_of_float bx_size in
   let height'  = height * 10  + box_size + 50 in (* height of the whole frame *)
   generate_adjacency_lists (width') (height');
   place_morphisms (box_size) (scale_up' box_size boxes);
-  printf "Width:\t\t\t%i\nHeight:\t\t\t%i\n" width' height';
-  printf "Box size:\t\t%i\n" box_size;
-  scale_up (float box_size) wires |> find_route |> List.map (List.map coord_of_string) |> List.map (List.map (scale_down box_size)) |> List.map corners
+  (*printf "Width:\t\t\t%i\nHeight:\t\t\t%i\n" width' height';
+  printf "Box size:\t\t%i\n" box_size; *)
+  scale_up (float box_size) wires |> find_route |> List.map (List.map coord_of_string) |> List.map (List.map (scale_down box_size)) |> List.map corners |> List.map remove_duplicates

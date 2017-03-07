@@ -87,9 +87,22 @@ let draw src dest =
                           "\\draw[black, rounded corners = 8pt] (" ^ (from_x |> string_of_float) ^ "," ^ (from_y |>string_of_float) ^ ") -- (" ^
                               ((from_x+.1.0) |> string_of_float) ^ "," ^ (max_y |> string_of_float) ^ ") -- (" ^ ((to_x-.1.0) |> string_of_float) ^ "," ^ (max_y |> string_of_float) ^ ") -- (" ^ (to_x |> string_of_float) ^ "," ^ (to_y |> string_of_float) ^ ")\n")
 
-let rec connect = function
+let rec draw_dangling_wires = function
+  | []    -> ""
+  | x::xs -> (match x.[0] with
+                | 'i' ->
+                  let (x,y) = Hashtbl.find nodes x in
+                  "\t\\draw[black] \t(" ^ x ^","^ y ^ ") -- (" ^ ((float_of_string x) -. !pixel_b_size |> string_of_float) ^ "," ^  y  ^ ");\n"
+                | 'o' ->
+                  let (x,y) = Hashtbl.find nodes x in
+                  "\t\\draw[black] \t(" ^ x ^","^ y ^ ") -- (" ^ ((float_of_string x) +. !pixel_b_size |> string_of_float) ^ "," ^  y  ^ ");\n"
+
+                | _   -> failwith "invalid port type"
+              ) ^ (draw_dangling_wires xs)
+
+let rec connect' = function
     | []              -> ""
-    | (outp, inp)::xs -> draw outp inp ^ connect xs
+    | (outp, inp)::xs -> draw outp  inp ^ connect' xs
 
 let rec ones = function
   | 0 -> []
@@ -105,40 +118,56 @@ let rec flatten_port_list = function
       )
 
 let gen_inputs x y = function
-  | []    -> ()
-  | xs    ->
+  | []    -> ""
+  | xs'    ->
+            let xs = List.rev xs' in
             let spacing = !box_size /. float ((List.length xs) + 1) in
             let base = y -. (!pixel_b_size) in
             for i = 0 to (List.length xs - 1) do
               let curr_input = List.nth xs i in
+
               let from_x = x  |> string_of_float in
-              let from_y = base +. float (i+1) *. spacing |> string_of_float in
-              let to_x = x +. (!box_spacing) -. (!pixel_b_size)|> string_of_float in
+              let from_y' = (base +. float (i+1) *. spacing) in
+              let from_y'' = from_y' *. 10.0 |> int_of_float |> float_of_int in
+              let from_y = from_y'' /. 10.0 |> string_of_float in
+
+              let to_x' = x +. (!box_spacing) -. (!pixel_b_size) in
+              let to_x'' = to_x' *. 10.0 |> int_of_float |> float_of_int in
+              (*let to_x = to_x'' /. 10.0 |> string_of_float in *)
+              let to_x = x +. (!box_spacing) -. (!pixel_b_size) |> string_of_float in
               let to_y = from_y in
+
               (match curr_input with
-                | str -> Hashtbl.add nodes str (to_x, to_y)
+                | str -> printf "\tAdding node %s to hashtbl\n" str; Hashtbl.add nodes str (to_x, to_y)
                 | _   -> failwith "Unknown port type"
               )
-            done
+            done;
+            let wire_drawing = Buffer.contents temporary in
+            Buffer.clear temporary;
+            wire_drawing
 
 let gen_outputs x y = function
-  | [] -> ()
-  | xs -> let flat_list = xs  in
+  | [] -> ""
+  | xs -> let flat_list = List.rev xs  in
           let num_outputs = List.length flat_list in
           let spacing = !box_size /. float (num_outputs + 1) in
           let base = y -. (!pixel_b_size) in
           for i = 0 to (List.length flat_list - 1) do
             let curr_input = List.nth flat_list i in
             let from_x = x +. !box_spacing +. !pixel_b_size |> string_of_float in
-            let from_y = base +. float (i+1) *. spacing |> string_of_float in
+            let from_y' = (base +. float (i+1) *. spacing) in
+            let from_y'' = from_y' *. 10.0 |> int_of_float |> float_of_int in
+            let from_y =  from_y'' /. 10.0 |> string_of_float in
             let to_x   = x +. !box_spacing +. !pixel_b_size +. (!box_spacing /. 2.0) |> string_of_float in
             let to_y   = from_y in
             ( match curr_input with
-              | str -> Hashtbl.add nodes str (from_x, from_y)
+              | str -> printf "\tAdding node %s to hashtbl\n" str; Hashtbl.add nodes str (from_x, from_y)
               | _   -> failwith "Unknown output port type"
             )
-          done
-
+          done;
+          let wire_drawing = Buffer.contents temporary in
+          Buffer.clear temporary;
+          wire_drawing
 
 (* Inputs are now of type [i1,i2,x] etc. *)
 let generate_inputs num_inputs x y = function
@@ -258,25 +287,20 @@ let rec fix_inputs name = function
             generate_input_nodes ins
   | Some(xs) ->
   (match xs with
-    | [] -> let (ins,outs) = Hashtbl.find morphisms name in
-              generate_input_nodes ins
+    | [] -> []
     | x::xs -> (match type_port x with
                     | Number n -> generate_input_nodes n @ fix_inputs name (Some xs)
                     | String s -> s :: fix_inputs name (Some xs) ))
-
 
 let rec fix_outputs name = function
   | None -> let (ins,outs) = Hashtbl.find morphisms name in
             generate_output_nodes outs
   | Some(xs) ->
   (match xs with
-    | [] -> let (ins,outs) = Hashtbl.find morphisms name in
-              generate_output_nodes outs
+    | [] -> []
     | x::xs -> (match type_port x with
                     | Number n -> generate_output_nodes n @ fix_outputs name (Some xs)
                     | String s -> s :: fix_outputs name (Some xs) ))
-
-
 
 (* ins outs ::  ... None f None ... Some(1,x) f Some (1,y) ... *)
 let rec replace_morphism_ports = function
@@ -286,26 +310,33 @@ let rec replace_morphism_ports = function
     let outs' = fix_outputs m outs in
     Hashtbl.add ports m (ins',outs');
     Morphism(m,Some(ins'),Some(outs'))
-  | Tensor(a,b)               -> Tensor((replace_morphism_ports a),(replace_morphism_ports b))
-  | Composition(f,g)          -> Composition((replace_morphism_ports f),(replace_morphism_ports g))
+  | Tensor(a,b)                  -> Tensor((replace_morphism_ports a),(replace_morphism_ports b))
+  | Composition(f,g)             -> Composition((replace_morphism_ports f),(replace_morphism_ports g))
   | Subdiagram(diagram,ins,outs) -> Subdiagram((replace_morphism_ports diagram),ins,outs)
 
 let list_of = function
   | None -> []
   | Some(xs) -> xs
 
+let rec name = function
+  | Identity                         -> "Identity"
+  | Morphism (m, ins, outs)          -> m
+  | Tensor (f,g)                     -> "Tensor(" ^ name f ^ ", " ^ name g ^ ")"
+  | Composition (f,g)                -> "Composition(" ^ (name f) ^ "," ^ (name g) ^"  )"
+  | Subdiagram (diagram', ins, outs) -> name diagram'
+
 let rec getOutputs = function
   | Identity             -> []
   | Morphism(m,ins,outs) -> list_of outs
   | Tensor(a,b)          -> getOutputs a @ getOutputs b
-  | Composition(f,g)     -> getOutputs g
+  | Composition(f,g)     -> getOutputs g @ getOutputs g
   | Subdiagram(diag,ins,outs) -> failwith "Not implemented: getOutputs of Subdiagram structure"
 
 let rec getInputs = function
   | Identity             -> []
-  | Morphism(m,ins,outs) -> list_of ins
+  | Morphism(m,ins,outs) -> printf "\nGetting inputs from %s\n" m; list_of ins
   | Tensor(a,b)          -> getInputs a @ getInputs b
-  | Composition(f,g)     -> getInputs f
+  | Composition(f,g)     -> printf "\nComposition of %s ; %s\n" (name f) (name g); getInputs f @ getInputs g
   | Subdiagram(diag,ins,outs) -> failwith "Not implemented: getInputs of Subdiagram structure"
 
 let rec connect  = function
@@ -313,6 +344,10 @@ let rec connect  = function
   | [], xs -> ()
   | xs, [] -> ()
   | (o::os),(i::is) -> Hashtbl.add links o i; connect (os,is)
+
+let rec print_list = function
+  | [] -> printf "\n"
+  | x::xs -> printf " %s " x; print_list xs
 
 let rec draw_structurally x y tree styles =
   (* Create a grid of max_width * max_height *)
@@ -325,12 +360,14 @@ let rec draw_structurally x y tree styles =
         "\t\\node (" ^ empty_right ^ ")\tat (" ^ ((x+.(!box_spacing))|>string_of_float) ^ "," ^ (y|>string_of_float) ^ ")\t\t{}\n" ^
         "\t\\draw [black] (" ^ empty_left ^ ".east) -- (" ^ empty_right ^ ".west);\n"
     | Morphism (m,ins,outs) ->
-      let (num_inputs,num_outputs) = Hashtbl.find morphisms m in
-      let morph   = draw_morphism m (x+.(!box_spacing)) y styles in
-      gen_inputs  x y (list_of ins);
-      gen_outputs x y (list_of outs);
-      Hashtbl.add morphismLocations m (Point((x+.(!box_spacing)), y));
-      morph ^  "\n"
+        let (num_inputs,num_outputs) = Hashtbl.find morphisms m in
+        let morph   = draw_morphism m (x+.(!box_spacing)) y styles in
+        printf "Adding morph %s to table\n" m;
+        let inps = gen_inputs  x y (list_of ins) in
+        let outps = gen_outputs x y (list_of outs) in
+        printf "\n";
+        Hashtbl.add morphismLocations m (Point((x+.(!box_spacing)), y));
+        morph ^ inps ^ outps ^ "\n"
     | Tensor(a,b)               ->
         let b' = draw_structurally x y b styles in
         let a' = draw_structurally x (y+.(!box_spacing *. 2.0)) a styles in
@@ -339,8 +376,10 @@ let rec draw_structurally x y tree styles =
         let f' = draw_structurally x y f styles in
         let g' = draw_structurally (x+.(width f)) y g styles in
         let outs = getOutputs f in
-        let ins  = getInputs g in
-        connect (outs, ins); (* just add the link to the link hashtbl *)
+        let ins  = getInputs  g in
+        printf "outputs: "; print_list outs; printf "inputs:  "; print_list ins; printf "\n";
+        let ls = (Hashtbl.fold (fun k v acc -> (k :: [v]) @ acc) links []) in
+        connect ((Bitmap.remove ls outs),(Bitmap.remove ls ins));
         (* TODO NOTE : could put wire drawings here so that the TEX generates above the morphism and the wires draw completely *)
         f' ^ g'
     | Subdiagram(diagram,ins,outs) ->
@@ -352,7 +391,7 @@ let tup = function
 let unwrap_def_list = function
   | [] -> []
   | (Definition(b_list, w_list)::xs) ->
-      List.map (fun wire -> let (inp, outp) = tup wire in Hashtbl.add links outp inp) w_list;
+      List.map (fun wire -> let (inp, outp) = tup wire in Hashtbl.add links inp outp) w_list;
       b_list (* we can discard the tail because the list is only being used so we either have 0 or 1 definitions *)
 
 let add_styles (Box (b,_, _, style)) = match style with
@@ -380,6 +419,7 @@ let rec get_boxes_with_styling = function
   | (Box (b,_, _, style))::xs -> (match style with
                                     | None -> get_boxes_with_styling xs
                                     | Some(s) -> b :: get_boxes_with_styling xs)
+
 (*
 let rec rename_morphs = function
   | Identity                -> Identity
@@ -404,11 +444,17 @@ let rec extract_boxes ms bs = match (ms, bs) with
 
 let rec getNodeLocations = function
   | []                         -> []
-  | ((x, y)::xs) -> let (from_nx,from_ny)    = (Hashtbl.find nodes x) in
-                    let (from_nx', from_ny') = ((from_nx |> float_of_string),(from_ny |> float_of_string)) in
-                    let (to_nx, to_ny)       = (Hashtbl.find nodes y) in
-                    let (to_nx', to_ny')     = ((to_nx   |> float_of_string),(to_ny   |> float_of_string)) in
-    ((to_nx',to_ny'),(from_nx', from_ny') ) :: (getNodeLocations xs)
+  | ((x, y)::xs) -> try
+                      printf "linking %s to %s\n" x y;
+                      let (from_nx,from_ny)    = (Hashtbl.find nodes x) in
+                      let (from_nx', from_ny') = ((from_nx |> float_of_string),(from_ny |> float_of_string)) in
+                      let (to_nx, to_ny)       = (Hashtbl.find nodes y) in
+                      let (to_nx', to_ny')     = ((to_nx   |> float_of_string),(to_ny   |> float_of_string)) in
+                      Hashtbl.remove nodes x;
+                      Hashtbl.remove nodes y;
+                      ((to_nx',to_ny'),(from_nx', from_ny') ) :: (getNodeLocations xs)
+                    with
+                      | Not_found -> failwith "Could not get node loc"
 
 let path_suffix corners = match corners with
   | []        -> ";"
@@ -432,9 +478,9 @@ let draw = function
           let (gx,gy) = List.rev xs |> List.hd in
           path_prefix (sx,sy) ^ print_path (List.tl xs) ^";\n"
 
-let print_links_list = function
+let rec print_links_list = function
   | [] -> ()
-  | ((x,y),(x',y'))::xs -> printf "Link x to y:\t\t (%f,%f) -- (%f,%f)\n" x y x' y'
+  | ((x,y),(x',y'))::xs -> printf "Link x to y:\t\t (%f,%f) -- (%f,%f)\n" x y x' y'; print_links_list xs
 
 let compile_program = function
   | Program(module_list, def_list, diag) ->
@@ -454,17 +500,22 @@ let compile_program = function
           update_morphism_table (unwrap_def_list def_list);
           let fixed_diag = replace_morphism_ports diag in
 
+          printf "\n--------------\n%s\n--------------\n" (name fixed_diag);
+
 
           let body = (draw_structurally 0.0 5.0 fixed_diag boxes_with_styling)  in
           let links_list = (Hashtbl.fold (fun k v acc -> (k, v) :: acc) links [])  in (* (string * string) list *)
           let box_list   = (Hashtbl.fold (fun k v acc -> (get_coords v) :: acc) morphismLocations [])  in
           let links_list' = getNodeLocations links_list in
 
+          let dangling_ports = (Hashtbl.fold (fun k v acc -> k :: acc) nodes []) in
+          let dangling_wires = draw_dangling_wires dangling_ports in
 
-          print_links_list links_list';
+          (*print_links_list links_list'; *)
+
 
 
           let paths = Bitmap.find_routes links_list' 15 (height diag) (!box_size *. 10.0) box_list in
           let string_drawing_of_wires = List.map draw paths |> List.fold_left (^) ""  in
-          let whole = styling ^ (prefix !box_size)  ^ body ^ string_drawing_of_wires  ^ suffix in
+          let whole = styling ^ (prefix !box_size)  ^ body ^ string_drawing_of_wires ^ dangling_wires ^ suffix in
           whole

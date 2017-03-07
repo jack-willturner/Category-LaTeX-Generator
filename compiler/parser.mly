@@ -21,7 +21,7 @@
 
 (***** PRECEDENCE RULES *****)
 %left BAR
-%left SEMICOLON
+%right SEMICOLON
 %left OPEN_BRACKET
 
 (***** PARSING RULES *****)
