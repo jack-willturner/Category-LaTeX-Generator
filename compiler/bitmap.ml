@@ -106,6 +106,35 @@ let rec clean = function
   | (None)::xs   -> clean xs
   | (Some x)::xs -> x :: clean xs
 
+let direction vertex =
+  let (x,y) = coord_of_string vertex in
+  let {name; xLoc; yLoc; status; successors;parent} = Hashtbl.find graph vertex in
+  if parent = "" then
+    OccupiedHorizontal
+  else
+    let (fst_x,fst_y) = coord_of_string parent  in
+    let {name; xLoc; yLoc; status; successors;parent} = Hashtbl.find graph parent in
+    if parent = "" then
+      OccupiedHorizontal
+    else
+      let (snd_x, snd_y)= coord_of_string parent in
+      if x = fst_x && fst_x = snd_x then
+        (* x is constant -> must be moving vertically *)
+        OccupiedVertical
+      else
+        if y = fst_y && fst_y = snd_y then
+          if x = fst_x && not(fst_x = snd_x) then Blocked
+          else OccupiedHorizontal
+        else OccupiedVertical
+
+let rec mark_directions = function
+  | []    -> ()
+  | x::xs -> let dir = direction x in
+             let {name; xLoc; yLoc; status; successors;parent} = Hashtbl.find graph x in
+             Hashtbl.replace graph x {name; xLoc; yLoc; status = dir; successors;parent};
+             mark_directions xs
+
+
 let rec expand vertex visited = let {name; xLoc; yLoc; status; successors;parent} = Hashtbl.find graph vertex in
       if List.mem vertex visited then
         []
@@ -132,7 +161,7 @@ let rec strategy' oldf newf visited goal cost_so_far = match newf with
   | x::xs     -> let (node_x,node_y) = coord_of_string x in
                  let (goal_x,goal_y) = coord_of_string goal in
                  let manhattan_dist = abs(node_x - goal_x) + abs(node_y - goal_y) * 10 in
-                 let {name; xLoc; yLoc; status; successors; parent} = Hashtbl.find graph x in
+                (*  let {name; xLoc; yLoc; status; successors; parent} = Hashtbl.find graph x in *)
                  strategy' (PrioQueue.insert oldf (manhattan_dist + cost_so_far) x visited) xs visited goal cost_so_far
 
 let scale_down box_size (x,y) =
@@ -231,8 +260,8 @@ let rec find_route = function
     done;
     let fringe' = strategy' PrioQueue.Empty fringe [] goal 0  in
     let route   = (search start goal fringe' [start] 0) in
+    mark_directions route;
     (route @ [start])  :: (find_route xs)
-
 
 let find_routes wires width height bx_size boxes =
   let width'   = width  * 10 in (* width of the whole frame *)

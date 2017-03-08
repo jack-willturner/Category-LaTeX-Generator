@@ -263,18 +263,21 @@ let rec width = function
   | Morphism(m, _, _) -> !box_spacing +. !pixel_b_size +. !box_spacing
   | Tensor(a,b) -> max (width a) (width b)
   | Composition(a,b) -> width a +. width b
+  | Subdiagram(diag,ins,outs) -> width diag
 
 let rec width' = function
   | Identity  -> 1
   | Morphism(m, _, _) -> 1
   | Tensor(a,b) -> max (width' a) (width' b)
   | Composition(a,b) -> width' a + width' b
+  | Subdiagram(diag,ins,outs) -> width' diag
 
 let rec height = function
   | Identity -> 1
   | Morphism(m,_,_) -> 2
   | Tensor(a,b) -> height a + height b
   | Composition(a,b) -> max (height a) (height b)
+  | Subdiagram(diag,ins,outs) -> height diag
 
 let draw_morphism m x y styles =
   if List.mem m styles then
