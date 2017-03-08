@@ -10,7 +10,7 @@ type diagram =
   | Morphism of string * string list option * string list option
   | Tensor of diagram * diagram
   | Composition of diagram * diagram
-  | Subdiagram of diagram * int * int  (* inputs and outputs *)
+  | Subdiagram of string * diagram * string list option * string list option
 
 type module_def =
   | Module of string * box list * wire list * diagram
@@ -29,7 +29,7 @@ let rec string_of_diagram = function
   | Morphism (m, ins, outs)          -> m
   | Tensor (f,g)                     -> "Tensor(" ^ string_of_diagram f ^ ", " ^ string_of_diagram g ^ ")"
   | Composition (f,g)                -> "Composition(" ^ (string_of_diagram f) ^ "," ^ (string_of_diagram g) ^"  )"
-  | Subdiagram (diagram', ins, outs) -> string_of_diagram diagram'
+  | Subdiagram (name, diagram', ins, outs) -> string_of_diagram diagram'
 
 let string_of_top = function
   | Program(module_list, diagram_list, diagram') -> string_of_diagram diagram'
@@ -49,3 +49,6 @@ type priority =
       successors : string option list;
       parent : string;
   }
+
+type module_sub_box =
+  | SubBox of string * int * int * string list * string list

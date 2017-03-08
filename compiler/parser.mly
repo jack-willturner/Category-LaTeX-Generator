@@ -9,7 +9,7 @@
 (****** TOKENS ******)
 %token IDENTITY
 %token TENSOR
-%token OPEN_SQUARE CLOSE_SQUARE
+%token OPEN_SQUARE CLOSE_SQUARE OPEN_ANGLE CLOSE_ANGLE
 %token OPEN_BRACE CLOSE_BRACE
 %token OPEN_BRACKET CLOSE_BRACKET
 %token BOX LINK
@@ -53,6 +53,7 @@ diagram:
   | OPEN_BRACKET; d = diagram; CLOSE_BRACKET;                      {d}
   | d1 = diagram; SEMICOLON; d2 = diagram                          {Composition(d1, d2)}
   | e=diagram;    BAR;  f = diagram                                {Tensor (e,f)}
+  | ins = option(params); OPEN_ANGLE; subdiagramID = STRING; CLOSE_ANGLE; outs = option(params)  {Subdiagram(subdiagramID, Identity, ins, outs)}
 
 module_def :
   | MODULE; m_name = STRING; OPEN_BRACE; b_list = separated_list(DOT,morphism_def);

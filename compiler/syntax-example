@@ -1,4 +1,5 @@
-box f : 1 -> 4.
-box g : 1 -> 1.
-box h : 4 -> 1
-link . -1- ; h 
+module m  {
+  box f : 1 -> 2
+  link . f
+}
+link . m ; m

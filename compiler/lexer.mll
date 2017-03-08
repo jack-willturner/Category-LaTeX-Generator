@@ -39,6 +39,8 @@ rule read =
 	| ';'														{SEMICOLON}
 	| '|'														{BAR}
 	| ':'														{COLON}
+	| '<'														{OPEN_ANGLE}
+	| '>'														{CLOSE_ANGLE}
 	| "->" 													{ARROW}
 	| "box"			                    {BOX}
 	| "link"                      	{LINK}
