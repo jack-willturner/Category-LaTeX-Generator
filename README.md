@@ -1,7 +1,26 @@
 # The Category Compiler
 This is the repository that will be used to manage the code for my final year project at the University of Birmingham. The tool itself will be a web-based application that allows users to describe the string-diagrams of monoidal categories using the syntax defined below. The compiler will then compute and generate the corresponding LaTeX to draw the diagram.
 
-This is still in early stages but very soon (within the next week) I aim to have a working prototype that will at least generate diagrams for basic categories and operations.
+Currently the main features are all working (with a few bugs) but the tool is command-line based. 
+
+# Installation instructions 
+Packages you'll need to have installed:
+* OCaml 4.04.0
+* ocamlbuild
+* ocamlfind 
+* menhir
+
+Clone the repository into a folder and move into the compiler directory. Then run:
+```
+eval `opam config env`
+```
+Change the diagram in `syntax-example` to the diagram that you want to draw. Then run:
+```
+ocamlbuild -use-menhir -use-ocamlfind compiler_test.native
+
+./compiler_test.native
+```
+and copy and paste the output into your TEX file.
 
 # Syntax of the Language
 Formally the diagrams can be specified as:
