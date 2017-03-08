@@ -100,6 +100,7 @@ let rec draw_dangling_wires = function
                 | _   -> failwith "invalid port type"
               ) ^ (draw_dangling_wires xs)
 
+
 let rec connect' = function
     | []              -> ""
     | (outp, inp)::xs -> draw outp  inp ^ connect' xs
@@ -352,6 +353,21 @@ let rec print_list = function
   | [] -> printf "\n"
   | x::xs -> printf " %s " x; print_list xs
 
+
+let rec draw_subdiagram Subdiagram(boxes,links,diagram) x y = match diagram with
+  | Identity                  ->
+    let empty_left = hiddenNode() in
+    let empty_right = hiddenNode() in
+    "\t\\node (" ^ empty_left  ^ ")\tat (" ^ (x |> string_of_float) ^ "," ^ (y |> string_of_float) ^ ")\t\t{}\n" ^
+    "\t\\node (" ^ empty_right ^ ")\tat (" ^ ((x+.(!box_spacing))|>string_of_float) ^ "," ^ (y|>string_of_float) ^ ")\t\t{}\n" ^
+    "\t\\draw [black] (" ^ empty_left ^ ".east) -- (" ^ empty_right ^ ".west);\n"
+  | Morphism(m,ins,outs)      ->
+    lookup m
+  | Tensor(a,b) -> height a + height b
+  | Composition(a,b) -> max (height a) (height b)
+  | Subdiagram(diag,ins,outs) -> height diag
+
+
 let rec draw_structurally x y tree styles =
   (* Create a grid of max_width * max_height *)
   (* Scan left to right adding morphisms to boxes *)
@@ -363,7 +379,6 @@ let rec draw_structurally x y tree styles =
         "\t\\node (" ^ empty_right ^ ")\tat (" ^ ((x+.(!box_spacing))|>string_of_float) ^ "," ^ (y|>string_of_float) ^ ")\t\t{}\n" ^
         "\t\\draw [black] (" ^ empty_left ^ ".east) -- (" ^ empty_right ^ ".west);\n"
     | Morphism (m,ins,outs) ->
-        let (num_inputs,num_outputs) = Hashtbl.find morphisms m in
         let morph   = draw_morphism m (x+.(!box_spacing)) y styles in
         printf "Adding morph %s to table\n" m;
         let inps = gen_inputs  x y (list_of ins) in

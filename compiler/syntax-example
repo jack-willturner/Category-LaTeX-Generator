@@ -1,4 +1,4 @@
 box f : 1 -> 4.
 box g : 1 -> 1.
 box h : 4 -> 1
-link . f ; g ; h
+link . -1- ; h 
