@@ -271,4 +271,4 @@ let find_routes wires width height bx_size boxes =
   place_morphisms (box_size) (scale_up' box_size boxes);
   (*printf "Width:\t\t\t%i\nHeight:\t\t\t%i\n" width' height';
   printf "Box size:\t\t%i\n" box_size; *)
-  scale_up (float box_size) wires |> find_route |> List.map (List.map coord_of_string) |> List.map (List.map (scale_down box_size))  |> List.map remove_duplicates
+  scale_up (float box_size) wires |> find_route |> List.map (List.map coord_of_string) |> List.map (List.map (scale_down box_size))  |> List.map corners |> List.map remove_duplicates

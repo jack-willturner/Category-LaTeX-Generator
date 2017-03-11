@@ -1,2 +1,3 @@
+(* TEST: check scaling of boxes with more than 5 occurrences *)
 box f : 1 -> 1.
 link x y. f[x] ; f ; f ; f ; f ; f ; f ; f ; [y]f ; f ; f ; f

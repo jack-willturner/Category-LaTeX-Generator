@@ -1,0 +1,9 @@
+module m {
+  box f : 1 -> 1
+  link . f
+}
+module n {
+  box f : 1 -> 1
+  link . f
+}
+<m> ; <n>

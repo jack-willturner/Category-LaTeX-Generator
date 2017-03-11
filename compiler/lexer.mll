@@ -27,7 +27,6 @@ rule read =
 	| newline 											{incr lineno; read lexbuf}
 	| "(*"		  	                 	{comment lexbuf; read lexbuf}
 	| "*)"        	                {read lexbuf}
-	| '+'                           {TENSOR}
 	| '.'    												{DOT}
 	| ','														{COMMA}
 	| '{'														{OPEN_BRACE}
@@ -44,13 +43,11 @@ rule read =
 	| "->" 													{ARROW}
 	| "box"			                    {BOX}
 	| "link"                      	{LINK}
-	| "in" 													{INPUTS}
 	| "module"											{MODULE}
 	| "boxcolour"										{BOXCOLOUR}
 	| "boxshape"										{BOXSHAPE}
 	| "-1-"													{IDENTITY}
 	| id 	 	  											{STRING (Lexing.lexeme lexbuf)}
-	| digit													{INT (int_of_string (Lexing.lexeme lexbuf))}
 	| eof														{EOF}
 	| _ 		  		 									{ raise (SyntaxError ("Unexpected char: " ^
 									 									Lexing.lexeme lexbuf)) }

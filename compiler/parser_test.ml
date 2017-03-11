@@ -9,7 +9,7 @@ open Ast
 
 let fileno = ref 0
 
-let test_files = [("syntax-example")]
+let test_files = ["test/test1";"test/test2";"test/test3";"test/test4";"test/test5";"test/test6";"test/test7";"test/test8";"test/test9";"test/test10"]
 
 let rec read_to_empty buf in_channel =
 	Lexer.lineno := 1;

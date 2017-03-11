@@ -13,7 +13,7 @@ type diagram =
   | Subdiagram of string * diagram * string list option * string list option
 
 type module_def =
-  | Module of string * box list * wire list * diagram
+  | Module of string * box list * wire list option * diagram
 
 type definition =
   | Definition of box list * wire list option

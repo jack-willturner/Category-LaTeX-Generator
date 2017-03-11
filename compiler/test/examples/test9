@@ -1,0 +1,5 @@
+(* TEST : link explicit wires over multiple boxes *)
+box f : 1 -> 2;
+box g : 1 -> 1;
+box h : 2 -> 1.
+link x y. f[x,1] ; g ; [y,1]h
