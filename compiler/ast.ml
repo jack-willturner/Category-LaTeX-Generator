@@ -16,7 +16,7 @@ type module_def =
   | Module of string * box list * wire list * diagram
 
 type definition =
-  | Definition of box list * wire list
+  | Definition of box list * wire list option
 
 type pnt = Point of (float * float)
 
@@ -33,7 +33,6 @@ let rec string_of_diagram = function
 
 let string_of_top = function
   | Program(module_list, diagram_list, diagram') -> string_of_diagram diagram'
-
 
 type priority =
     | Free

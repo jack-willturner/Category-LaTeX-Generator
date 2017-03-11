@@ -60,9 +60,12 @@ module_def :
     LINK; w_list = separated_list(COMMA,wire_def); DOT;
     d = diagram; CLOSE_BRACE;               {Module(m_name, b_list, w_list, d)}
 
+link_list:
+  | LINK; w_list = separated_list(COMMA,wire_def)                 {w_list}
+
 definition:
-  | m_list = separated_list(DOT,morphism_def);
-    LINK; w_list = separated_list(COMMA,wire_def)                 {Definition(m_list, w_list)}
+  | m_list = separated_list(SEMICOLON,morphism_def); 
+    ww_list = option(link_list);  DOT;              {Definition(m_list, ww_list)}
 
 top:
-  | module_list = list(module_def); definition_list = list(definition); DOT; d = diagram; EOF  {Program(module_list, definition_list,d )}
+  | module_list = list(module_def); definition_list = list(definition); d = diagram; EOF  {Program(module_list, definition_list,d )}

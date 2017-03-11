@@ -230,7 +230,7 @@ let rec search start goal fringe visited cost = match fringe with
     if goal = name then
        reconstruct_path name start
     else
-      (search start goal (strategy' (PrioQueue.remove_top (PrioQueue.Node(prio,x,left,right))) (expand x (visited)) (x::visited) goal cost) (x::visited) (cost+3))
+      (search start goal (strategy' (PrioQueue.remove_top (PrioQueue.Node(prio,x,left,right))) (expand x (visited)) (x::visited) goal cost) (x::visited) (cost+10))
 
 let free_coord (x,y) =
     for i = x  to (x+3) do
@@ -271,4 +271,4 @@ let find_routes wires width height bx_size boxes =
   place_morphisms (box_size) (scale_up' box_size boxes);
   (*printf "Width:\t\t\t%i\nHeight:\t\t\t%i\n" width' height';
   printf "Box size:\t\t%i\n" box_size; *)
-  scale_up (float box_size) wires |> find_route |> List.map (List.map coord_of_string) |> List.map (List.map (scale_down box_size)) |> List.map corners |> List.map remove_duplicates
+  scale_up (float box_size) wires |> find_route |> List.map (List.map coord_of_string) |> List.map (List.map (scale_down box_size))  |> List.map remove_duplicates
