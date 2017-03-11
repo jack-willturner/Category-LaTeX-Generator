@@ -1,5 +1,5 @@
-module m  {
+module m {
   box f : 1 -> 2
   link . f
 }
-link . m ; m
+link  . <m> ; <m>

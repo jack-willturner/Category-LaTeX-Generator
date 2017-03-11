@@ -1,0 +1,4 @@
+box f : 1 -> 2.
+box g : 1 -> 1.
+box h : 3 -> 1
+link . 2 ; g ; g ; h
