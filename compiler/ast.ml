@@ -47,6 +47,7 @@ type priority =
       status : priority;
       successors : string option list;
       parent : string;
+      cost : int;
   }
 
 type module_sub_box =

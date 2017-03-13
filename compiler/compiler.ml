@@ -425,7 +425,7 @@ let rec print_links_list = function
   | ((x,y),(x',y'))::xs -> printf "Link x to y:\t\t (%f,%f) -- (%f,%f)\n" x y x' y'; print_links_list xs
 
 let module_to_subdiag (Module(name,box_list,wire_list',diagram)) =
-  let wire_list = list_of wire_list' in 
+  let wire_list = list_of wire_list' in
   (* Need to rename the boxes/morphisms and the links so that they don't get confused with other modules *)
   let renamed_morphs = rename_morphs box_list diagram in
   let renamed_links  = rename_links wire_list in
