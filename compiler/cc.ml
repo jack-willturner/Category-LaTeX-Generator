@@ -41,12 +41,15 @@ let run_test filename () =
 	|> Lexing.from_string
 	|> parse_with_error
 	|> Compiler.compile_program in
-  printf "%s\n" actual_result
+	let output_file = filename ^ ".tex" in
+	let oc = open_out output_file in
+	fprintf oc "%s\n" actual_result;
+	close_out oc
 
 	let command =
 	  Command.basic
-	    ~summary:"Generate an MD5 hash of the input data"
-	    ~readme:(fun () -> "More detailed information")
+	    ~summary:"A compiler from monoidal category descriptions to LaTeX representations of the string-diagrams"
+	    ~readme:(fun () -> "More detailed information on github")
 	    Command.Spec.(empty +> anon ("filename" %: string))
 	    run_test
 

@@ -1,0 +1,26 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{textcomp}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows}
+\title{Diagram}
+%\author{The Category Compiler}
+\date{}
+\begin{document}
+\tikzstyle{f} = [minimum size =1.25cm, right = 10mm, thick ,circle,draw=red, fill=red]
+
+
+\tikzstyle{morphism}=[minimum size =1.25cm,rectangle, draw=black, fill=white, thick]
+\tikzstyle{empty}   =[circle, draw=white, fill=white, thick]
+\begin{tikzpicture}
+
+
+	\draw[black] 	(2.125,4.6) -- (2.75,4.6);
+	\draw[black] 	(2.125,5.3) -- (2.75,5.3);
+	\draw[black] 	(2.125,5.) -- (2.75,5.);
+	\draw[black] 	(0.875,5.) -- (0.25,5.);
+	\node[f] (f)	at (1.5,5.)		{$f$};
+
+\end {tikzpicture}
+\end{document}
+

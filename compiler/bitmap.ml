@@ -219,18 +219,27 @@ let rec scale_up' box_size = function
               let yy = y *. 10.0  |> int_of_float in
               ((xx,yy)):: scale_up' box_size xs
 
-
-let rec corners = function
+let rec corners'' = function
  | []          -> []
  | [x]         -> [x]
  | (x,y)::[(x',y')]                -> (x,y)::[(x',y')]
  | (x,y)::(x',y')::(x'',y'')::xs  -> if x == x' && x == x'' then
-                                       corners ((x',y')::(x'',y'')::xs)
+                                       corners'' ((x',y')::(x'',y'')::xs)
                                      else
                                        if y == y' && y == y'' then
-                                         corners ((x',y')::(x'',y'')::xs)
+                                         corners'' ((x',y')::(x'',y'')::xs)
                                        else
-                                         (x,y) :: corners xs
+                                         (x,y) :: corners'' xs
+
+let last ls = List.rev ls |> List.hd
+
+let corners = function
+  | []   -> []
+  | [x]     -> [x]
+  | x::xs -> let start = x in
+             (match List.rev xs with
+               | []    -> []
+               | y::ys -> x :: (corners'' (List.rev ys)) @ [y] )
 
 let rec remove_duplicates = function
  | []                  -> []
@@ -301,14 +310,14 @@ let rec find_route = function
    mark_directions route;
    reset_costs;
    print_path route;
-   (route @ [start])  :: (find_route xs)
+   (route @[start])  :: (find_route xs)
 
    let find_routes wires width height bx_size boxes =
      let width'   = width  * 10 in (* width of the whole frame *)
      let box_size = int_of_float bx_size in
-     let height'  = height * 10  + box_size + 50 in (* height of the whole frame *)
+     let height'  = height * 10  + (box_size * 10) in (* height of the whole frame *)
      generate_adjacency_lists (width') (height');
      place_morphisms (box_size) (scale_up' box_size boxes);
-     (*printf "Width:\t\t\t%i\nHeight:\t\t\t%i\n" width' height';
-     printf "Box size:\t\t%i\n" box_size; *)
+     printf "Width:\t\t\t%i\nHeight:\t\t\t%i\n" width' height';
+     printf "Box size:\t\t%i\n" box_size;
      scale_up (float box_size) wires |> find_route |> List.map (List.map coord_of_string) |> List.map (List.map (scale_down box_size)) |> List.map corners |> List.map remove_duplicates

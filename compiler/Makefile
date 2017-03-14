@@ -1,9 +1,12 @@
-default: src/compiler_test.native
+FILENAME=syntax-example
+default : main
 
-%.native:
+main:
 	eval `opam config env`
-	ocamlbuild -use-menhir -use-ocamlfind compiler_test.native
-	ocamlbuild -use-menhir -use-ocamlfind -pkg core cc.native
+	corebuild -use-menhir cc.native $(FILENAME)
+	./cc.native $(FILENAME)
+	pdflatex $(FILENAME).tex
+	open $(FILENAME).tex
 
 clean:
 		rm *.native

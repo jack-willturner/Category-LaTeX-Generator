@@ -33,7 +33,7 @@ let outputNode()       = outputNodeCount  := !outputNodeCount + 1; ("o" ^ string
 let module_morph()     = moduleMorphismCount  := !moduleMorphismCount + 1; ("mod_morphism_box_" ^ string_of_int(!moduleMorphismCount- 1))
 let wire()             = wireCount  := !wireCount + 1; ("mod_morphism_box_" ^ string_of_int(!wireCount- 1))
 
-(* Option monadic bind *)
+(* Option monadic bind - nearly *)
 let (>>=) f = function
   | None -> f []
   | Some x -> f x
@@ -42,11 +42,24 @@ type port =
   | Number of int
   | String of string
 
-let prefix b_size = "\n\n\\tikzstyle{morphism}=[minimum size =" ^ (b_size |> string_of_float )^"cm,rectangle, draw=black, fill=white, thick]\n"  ^
-                    "\\tikzstyle{empty}   =[circle, draw=white, fill=white, thick]\n" ^
-                    "\\begin{tikzpicture}\n\n"
+let tex_open = "\\documentclass{article}\n" ^
+    "\\usepackage[utf8]{inputenc}\n"    ^
+    "\\usepackage{textcomp}\n"          ^
+    "\\usepackage{tikz}\n"              ^
+    "\\usetikzlibrary{shapes,arrows}\n" ^
 
-let suffix  = "\\end {tikzpicture}\n\n"
+    "\\title{Diagram}\n"                ^
+    "%\\author{The Category Compiler}\n"^
+    "\\date{}\n"                        ^
+
+    "\\begin{document}\n"
+
+let prefix b_size =
+    "\n\n\\tikzstyle{morphism}=[minimum size =" ^ (b_size |> string_of_float )^"cm,rectangle, draw=black, fill=white, thick]\n"  ^
+    "\\tikzstyle{empty}   =[circle, draw=white, fill=white, thick]\n" ^
+    "\\begin{tikzpicture}\n\n"
+
+let suffix  = "\\end {tikzpicture}\n\\end{document}\n"
 
 let rec generate_input_nodes = function
   | 0 -> []
@@ -472,5 +485,5 @@ let compile_program = function
 
           let paths = Bitmap.find_routes links_list' 15 (height diag) (!box_size *. 10.0) box_list in
           let string_drawing_of_wires = List.map draw paths |> List.fold_left (^) ""  in
-          let whole = styling ^ (prefix !box_size)  ^ body ^ string_drawing_of_wires ^ dangling_wires ^ suffix in
+          let whole = tex_open ^ styling ^ (prefix !box_size) ^ string_drawing_of_wires ^ dangling_wires   ^ body  ^ suffix in
           whole
