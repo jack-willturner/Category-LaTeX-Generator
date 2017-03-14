@@ -9,18 +9,16 @@ Packages you'll need to have installed:
 * ocamlbuild
 * ocamlfind 
 * menhir
+* some tex builder 
+* corebuild
 
-Clone the repository into a folder and move into the compiler directory. Then run:
-```
-eval `opam config env`
-```
-Change the diagram in `syntax-example` to the diagram that you want to draw. Then run:
-```
-ocamlbuild -use-menhir -use-ocamlfind compiler_test.native
+# Compiling your diagrams 
+Clone the repository into your chosen directory and move into the compiler directory. Run:
 
-./compiler_test.native
 ```
-and copy and paste the output into your TEX file.
+make file=$filename$
+```
+and the tex/pdf file will generate into the same directory as `$filename$`.
 
 # Syntax of the Language
 Formally the diagrams can be specified as:
@@ -42,7 +40,7 @@ box <name> <{styling}> : <number of inputs> -> <number of outputs>
 ```
 For example:
 ```
-box f {boxcolour : RED; boxshape : CIRCLE} : 1 -> 3
+box f {boxcolour : RED; boxshape : CIRCLE} : 1 -> 3.
 ```
 Box definitions must be separated by fullstops.
 
@@ -54,9 +52,9 @@ link a x, b y, c z.
 
 Below is an example of a diagram description in the syntax:
 ```
-box f : 1 -> 2.
-box g : 2 -> 1.
-box h : 2 -> 1
+box f : 1 -> 2;
+box g : 2 -> 1;
+box h : 2 -> 1.
 link x y. f[1,x] ; g ; [1,y]h
 ```
 The `[1,x]` after the f specifies that the f has two outputs. The first can be inferred, but the second should be called `x`. The `[1,y]` after the h specifies that `h` has two inputs - the first can be inferred but the second should be called `y`. The compiler will then link `x` to `y` based on the line `link x y.`
@@ -67,11 +65,11 @@ The syntax can also be used to describe modules, which can then be imported into
 A module would be written:
 ```
 module m = {
-  box f : 1 -> 2.
-  box g : 2 -> 1.
-  box h : 2 -> 1
+  box f : 1 -> 2;
+  box g : 2 -> 1;
+  box h : 2 -> 1.
   link x y. f[1,x] ; g ; [1,y]h
 }
-m ; m
+<m> ; <m>
 ```
-where `m ; m` composes `m` onto itself.
+where `<m> ; <m>` composes `m` onto itself.
