@@ -3,18 +3,13 @@ open Printf
 open List
 open PrioQueue
 
-(* TODO calculate coordinates of ports *)
-
+(* Graph is a hashtable of adjacency lists *)
 let graph = Hashtbl.create 10000
 
-let xLoc = ref 0
-let yLoc = ref 0
-
-let new_x() = xLoc := !xLoc + 1; (string_of_int(!xLoc -1))
-let new_y() = yLoc := !yLoc + 1; (string_of_int(!yLoc -1))
-
+(* Convert a coordinate (x,y) to a string : e.g. (1,1) becomes x1y1 *)
 let string_of_coord x y = "x" ^ (x |> string_of_int)  ^ "y" ^ (y |> string_of_int)
 
+(* Convert a string x0y0 to a coordinate (0,0) etc. *)
 let coord_of_string str =
  (* get rid of leading 'x' *)
  let tail   = String.sub str 1 ((String.length str) - 1) in
@@ -23,6 +18,7 @@ let coord_of_string str =
  (match coords with
    | x::xs  -> ((x |> int_of_string),((List.hd xs) |> int_of_string))
    | _     -> failwith "coord_of_string")
+
 
 (* Each adjacency list is made up of 8 elements describing the successors of the square clockwise  *)
 let generate_adjacency_lists x y =
@@ -81,32 +77,36 @@ let block_coord coord =
    let status = Blocked in
    Hashtbl.replace graph coord {name; xLoc; yLoc; status; successors;parent;cost}
  with
-   | Not_found -> ()
+   | Not_found -> () (* ignore if the coordinate can't be found - this just means we're trying to block a coordinate that *)
+                     (* isn't in the grid. If this happens then it may be because of the for loops below, but if it is a  *)
+                     (* more serious issue then an exception will be raised when the coordinate is accessed               *)
 
 (* box_size -> morphism_list -> unit *)
+(* Given a coordinate (x,y) and the size of a box, block out the coordinates that the box occupoies *)
 let rec place_morphisms box_size = function
  | []              -> ()
  | (x,y)::xs  ->
-
    let x' = x - (box_size / 2) in
    let y' = y - (box_size / 2) in
-    printf "PLACING MORPHISM AT (%i,%i)\n" x' y';
    (* assume x y have been scaled and represent the left-bottom-aligned origin of the box *)
    (* now we mark the every node as occupied in the hashtable *)
-   for i = (x' -2) to (x'+box_size+2) do
+   for i = (x'-2) to (x'+box_size+2) do
      for j = (y'-2 ) to (y'+box_size+2) do
          string_of_coord i j |> block_coord  (* type unit *)
      done;
    done;
    place_morphisms box_size xs
 
-let rec remove ls fromls = filter (fun x -> not(mem x ls)) fromls
+(* Remove elements in ls from fromls *)
+let remove ls fromls = filter (fun x -> not(mem x ls)) fromls
 
+(* Unwrap option type - may be better replaced using monadic bind *)
 let rec clean = function
  | [] -> []
  | (None)::xs   -> clean xs
  | (Some x)::xs -> x :: clean xs
 
+(* Given a coordinate, return the direction that it faces in the current path *)
  let direction vertex =
   let (x,y) = coord_of_string vertex in
   let {name; xLoc; yLoc; status; successors;parent;cost} = Hashtbl.find graph vertex in
@@ -143,19 +143,17 @@ let rec mark_directions = function
             Hashtbl.replace graph x {name; xLoc; yLoc; status = dir; successors;parent;cost};
             mark_directions xs
 
-
+(* How we expand a node in the A* search algorithm *)
 let rec expand vertex visited = let {name; xLoc; yLoc; status; successors;parent;cost} = Hashtbl.find graph vertex in
      if List.mem vertex visited then
        []
      else
-      let r = 10 in
-       (*printf "Currently expanding %s with parent %s\n" name parent ; *)
        let new_successors = (match status with
            | Free                 -> clean [(List.nth successors 2);(List.nth successors 0);(List.nth successors 4); (List.nth successors 6)] |> remove visited
            | OccupiedHorizontal   -> clean [(List.nth successors 0);(List.nth successors 4)] (* can only go up/down *)    |> remove visited
            | OccupiedVertical     -> clean [(List.nth successors 2);(List.nth successors 5)] (* can only go left/right *) |> remove visited
            | Blocked              -> [] ) in
-         for i = 0 to (List.length new_successors -1) do
+         for i = 0 to (List.length new_successors - 1) do
            let {name; xLoc; yLoc; status; successors;  parent; cost} = Hashtbl.find graph (List.nth new_successors i) in
            Hashtbl.replace graph (List.nth new_successors i) {name = name;
                                                               xLoc = xLoc;
@@ -188,14 +186,13 @@ let rec strategy' oldf newf visited goal cost_so_far = match newf with
                 else
                   let {name; xLoc; yLoc; status; successors; parent;cost} = Hashtbl.find graph parent in
                   let parent_cost = cost + 10 in
-                  (*printf "\tFrom node %s to goal %s manhattan = %i and cost_so_far = %i:\n" x goal manhattan_dist cost_so_far;
-                  printf "\t\th(n) + g(n) = %i\n" (manhattan_dist + (parent_cost)); *)
                   if direction x = Blocked then
-                    let r = 5 in
+                    let dummyval = 10 in (* dummy value used to allow unit type of Hashtbl.replace *)
+                    (* If x is trying to turn a corner, then we add an additional cost of 5 to smooth out paths *)
                     Hashtbl.replace graph x {name = n; xLoc = xL; yLoc = yL; status = stat; successors = succ; parent = p;cost=(parent_cost+5)};
                     strategy' (PrioQueue.insert oldf (manhattan_dist + (parent_cost+5)) x visited) xs visited goal cost_so_far
                   else
-                    let r = 10 in
+                    let dummyval = 10 in (* dummy value used to allow unit type of Hashtbl.replace *)
                     Hashtbl.replace graph x {name = n; xLoc = xL; yLoc = yL; status = stat; successors = succ; parent = p;cost=(parent_cost)};
                     strategy' (PrioQueue.insert oldf (manhattan_dist + (parent_cost)) x visited) xs visited goal cost_so_far
 
@@ -293,7 +290,6 @@ let reset_costs = Hashtbl.iter (fun n {name;xLoc;yLoc;status;successors;parent;c
 let rec find_route = function
  | []    -> [[]]
  | ((from_x, from_y),(to_x,to_y))::xs ->
-   printf "Linking x to y:\t\t (%i,%i) -- (%i,%i)\n" from_x from_y to_x to_y;
    free_coord (from_x, from_y);
    free_coord ((from_x-3), from_y);
    free_coord (to_x, to_y); (* always want to link left to right *)
@@ -318,6 +314,4 @@ let rec find_route = function
      let height'  = height * 10  + (box_size * 10) in (* height of the whole frame *)
      generate_adjacency_lists (width') (height');
      place_morphisms (box_size) (scale_up' box_size boxes);
-     printf "Width:\t\t\t%i\nHeight:\t\t\t%i\n" width' height';
-     printf "Box size:\t\t%i\n" box_size;
      scale_up (float box_size) wires |> find_route |> List.map (List.map coord_of_string) |> List.map (List.map (scale_down box_size)) |> List.map corners |> List.map remove_duplicates

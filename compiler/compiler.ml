@@ -4,44 +4,46 @@ open Buffer
 open Printf
 open Bitmap
 
-(* First, set up a hashtable of morphisms *)
-let morphisms         = Hashtbl.create 64         (* f : 1 -> 3 :: f | 1,3 - symbol table *)
-let links             = Hashtbl.create 64         (* symbol table for links *)
-let morphismLocations = Hashtbl.create 64         (* f | Point(x, y) *)
-let nodes             = Hashtbl.create 64         (* essentially link locations *)
-let morphism_names    = Hashtbl.create 64
-let wire_names        = Hashtbl.create 64
-let modules           = Hashtbl.create 64
+(* Symbol tables for different types of diagram entity *)
+let morphisms         = Hashtbl.create 64         (* f | 1,3              : specifies that entry f has 1 input and 3 outputs *)
+let links             = Hashtbl.create 64         (* x | y                : specifies that port x is linked to port y *)
+let morphismLocations = Hashtbl.create 64         (* f | Point(x, y)      : gives location of box f *)
+let nodes             = Hashtbl.create 64         (* i | (x, y)           : node i has location (x,y) *)
+let morphism_names    = Hashtbl.create 64         (* f | mod_m_box_1      : box f has been renamed to internal name mod_m_box_1 *)
+let wire_names        = Hashtbl.create 64         (* x | mod_wire_1       : wire x has been renamed to internal name mod_wire_1 *)
+let modules           = Hashtbl.create 64         (* m | Subdiag(name,ins,outs, diag)     *)
 let temporary         = Buffer.create  64         (* temporary Buffer *)
 
-let ports = Hashtbl.create 64
+(* Default sizings for the boxes *)
+let box_size     = ref 1.25 (* Size of box in tikz units *)
+let pixel_b_size = ref 0.62 (* Size of box in pixels     *)
+let box_spacing  = ref 1.0  (* Vertical and horizontal spacing between boxes *)
 
-let box_size     = ref 1.25
-let pixel_b_size = ref 0.62 (* always half of the box size since the boxes are placed from the centre *)
-let box_spacing  = ref 1.0
-
+(* Counters used for renaming the variables to internal representations used for scoping *)
 let hiddenNodeCount = ref 0
 let inputNodeCount  = ref 0
 let outputNodeCount = ref 0
-
-let wireCount = ref 0
+let wireCount       = ref 0
 let moduleMorphismCount = ref 0
 
+(* Accessor methods for getting the counters above *)
 let hiddenNode()       = hiddenNodeCount  := !hiddenNodeCount + 1; ("empty" ^ string_of_int(!hiddenNodeCount  - 1))
-let inputNode()        = inputNodeCount   := !inputNodeCount  + 1; ("i" ^ string_of_int(!inputNodeCount - 1))
-let outputNode()       = outputNodeCount  := !outputNodeCount + 1; ("o" ^ string_of_int(!outputNodeCount - 1))
+let inputNode()        = inputNodeCount   := !inputNodeCount  + 1; ("i"     ^ string_of_int(!inputNodeCount   - 1))
+let outputNode()       = outputNodeCount  := !outputNodeCount + 1; ("o"     ^ string_of_int(!outputNodeCount  - 1))
+let wire()             = wireCount        := !wireCount       + 1; ("mod_morphism_wire_" ^ string_of_int(!wireCount - 1))
 let module_morph()     = moduleMorphismCount  := !moduleMorphismCount + 1; ("mod_morphism_box_" ^ string_of_int(!moduleMorphismCount- 1))
-let wire()             = wireCount  := !wireCount + 1; ("mod_morphism_box_" ^ string_of_int(!wireCount- 1))
 
 (* Option monadic bind - nearly *)
 let (>>=) f = function
   | None -> f []
   | Some x -> f x
 
+(* Ports on boxes can either be a number describing the number of ports, or a string name given explicitly to the port *)
 type port =
   | Number of int
   | String of string
 
+(* Prefixes for the file generation *)
 let tex_open = "\\documentclass{article}\n" ^
     "\\usepackage[utf8]{inputenc}\n"    ^
     "\\usepackage{textcomp}\n"          ^
@@ -61,36 +63,38 @@ let prefix b_size =
 
 let suffix  = "\\end {tikzpicture}\n\\end{document}\n"
 
-let rec generate_input_nodes = function
-  | 0 -> []
-  | n -> inputNode() :: generate_input_nodes (n-1)
 
-let rec generate_output_nodes = function
-  | 0 -> []
-  | n -> outputNode() :: generate_output_nodes (n-1)
+(**************  PREPROCESSING ******************)
 
+(* Automatically generate ports on boxes based on box descriptions *)
+(* These then get compiled down into nodes, which can be connected using the search algorithm *)
+let rec generate_nodes node_generator = function
+  | 0 -> []
+  | n -> (node_generator ()) :: generate_nodes (node_generator) (n-1)
+
+(* Loop through the list of morphisms, adding each one to the hashtbl *)
 let rec update_morphism_table = function
   | []        -> ()
   | (Box(name, ins, outs, _)::xs) ->
           Hashtbl.add morphisms name (ins, outs);
           update_morphism_table xs
 
+(* Wrap the ports with a port type *)
 let rec type_inputs = function
   | []        -> []
   | x::xs     -> try let n = int_of_string x in (Number n):: (type_inputs xs)
                  with
                   | Failure _ -> (String x) :: (type_inputs xs)
 
-let type_port x  = try let n = int_of_string x in (Number n)
-                   with
-                    | Failure _ -> (String x)
-
+(* Return list from Option *)
 let list_of = function
   | None -> []
   | Some(xs) -> xs
 
+(* Unwrap Point type *)
 let get_coords (Point(x,y)) = (x,y)
 
+(* Draw any wires that are left unconnected as simple inputs/outputs *)
 let rec draw_dangling_wires = function
   | []    -> ""
   | x::xs -> (match x.[0] with
@@ -104,11 +108,14 @@ let rec draw_dangling_wires = function
                 | _   -> printf "WARNING: PORT TYPE INVALID %s\n" x; ""
               ) ^ (draw_dangling_wires xs)
 
+(* Return a list of 1s for the number of ports specified *)
 let rec ones = function
   | 0 -> []
   | 1 -> [Number 1]
   | n -> Number 1 :: (ones (n-1))
 
+(* Map the function above over the list of ports as needed *)
+(* e.g. if we have a box `f[2,x]` then we convert it to `f[1,1,x]` *)
 let rec flatten_port_list = function
   | [] -> []
   | x::xs ->
@@ -117,8 +124,9 @@ let rec flatten_port_list = function
         | String s ->  (String s) ::(flatten_port_list xs)
       )
 
+(* Generate the input ports for a given box at location (x,y), given a list of inputs *)
 let gen_inputs x y = function
-  | []    -> ""
+  | []     -> ""
   | xs'    ->
             let xs = List.rev xs' in
             let spacing = !box_size /. float ((List.length xs) + 1) in
@@ -126,25 +134,22 @@ let gen_inputs x y = function
             for i = 0 to (List.length xs - 1) do
               let curr_input = List.nth xs i in
 
-              (* let from_x = x  |> string_of_float in *)
               let from_y' = (base +. float (i+1) *. spacing) in
               let from_y'' = from_y' *. 10.0 |> int_of_float |> float_of_int in
               let from_y = from_y'' /. 10.0 |> string_of_float in
 
-              (*let to_x' = x +. (!box_spacing) -. (!pixel_b_size) in *)
-              (* let to_x'' = to_x' *. 10.0 |> int_of_float |> float_of_int in*)
-              (*let to_x = to_x'' /. 10.0 |> string_of_float in *)
               let to_x = x +. (!box_spacing) -. (!pixel_b_size) |> string_of_float in
               let to_y = from_y in
 
               (match curr_input with
-                | str -> printf "\tAdding node %s to hashtbl\n" str; Hashtbl.add nodes str (to_x, to_y)
+                | str -> Hashtbl.add nodes str (to_x, to_y)
               )
             done;
             let wire_drawing = Buffer.contents temporary in
             Buffer.clear temporary;
             wire_drawing
 
+(* Generate the output ports for a given box at location (x,y), given a list of outputs *)
 let gen_outputs x y = function
   | [] -> ""
   | xs -> let flat_list = List.rev xs  in
@@ -153,12 +158,12 @@ let gen_outputs x y = function
           let base = y -. (!pixel_b_size) in
           for i = 0 to (List.length flat_list - 1) do
             let curr_input = List.nth flat_list i in
+
             let from_x = x +. !box_spacing +. !pixel_b_size |> string_of_float in
             let from_y' = (base +. float (i+1) *. spacing) in
             let from_y'' = from_y' *. 10.0 |> int_of_float |> float_of_int in
             let from_y =  from_y'' /. 10.0 |> string_of_float in
-            (*let to_x   = x +. !box_spacing +. !pixel_b_size +. (!box_spacing /. 2.0) |> string_of_float in *)
-            (*let to_y   = from_y in *)
+
             ( match curr_input with
               | str -> printf "\tAdding node %s to hashtbl\n" str; Hashtbl.add nodes str (from_x, from_y)
             )
@@ -167,13 +172,15 @@ let gen_outputs x y = function
           Buffer.clear temporary;
           wire_drawing
 
+(* This function returns the physical width of a diagram so that the size of the bitmap can be calculated *)
 let rec width = function
-  | Identity  -> 2.0
+  | Identity  -> !box_spacing +. !pixel_b_size
   | Morphism(_, _, _) -> !box_spacing +. !pixel_b_size +. !box_spacing
   | Tensor(a,b) -> max (width a) (width b)
   | Composition(a,b) -> width a +. width b
   | Subdiagram(_,diag,_,_) -> width diag
 
+(* The structural width of a diagram *)
 let rec width' = function
   | Identity  -> 1
   | Morphism(_, _, _) -> 1
@@ -181,6 +188,7 @@ let rec width' = function
   | Composition(a,b) -> width' a + width' b
   | Subdiagram(_, diag,_,_) -> width' diag
 
+(* The structural height of a diagram *)
 let rec height = function
   | Identity -> 1
   | Morphism(_,_,_) -> 2
@@ -194,62 +202,57 @@ let draw_morphism m x y styles =
   else
     ("\t\\node[morphism] (" ^ m ^ ")\tat (" ^ (x|>string_of_float) ^ "," ^ (y|>string_of_float) ^ ")\t\t{$" ^ m ^"$};\n")
 
+(* Used for renaming morphisms in modules using a context list of boxes *)
 let rec lookup e = function
-  | [] -> failwith "Could not find elem in list"
+  | [] -> failwith ("Could not find box " ^ e ^ " in the module definition.")
   | (Box(name,ins,outs,_))::xs  ->  if name = e then (ins,outs) else lookup e xs
 
-let rec fix_inputs (ins,outs) = function
-  | None -> generate_input_nodes ins
+(* Preprocess the descriptions of the nodes given by the parser into a compilable format *)
+(* Nodes are originally given as ` None f None` or `None f Some(1,x)` etc.  *)
+(* We want them in the format ` [i1,i2] f [o1, x] ` for a box f with two inputs and two outputs *)
+(* nodegen is a function for generating the nodes - inputs or outputs *)
+let rec fix_nodes num_nodes nodegen = function
+  | None -> generate_nodes (nodegen) num_nodes
   | Some(xs) ->
   (match xs with
     | [] -> []
-    | x::xs -> (match type_port x with
-                    | Number n -> generate_input_nodes n @ fix_inputs (ins,outs) (Some xs)
-                    | String s -> s :: fix_inputs (ins,outs) (Some xs) ))
+    | x::xs -> (match (List.hd (type_inputs [x])) with
+                    | Number n -> generate_nodes (nodegen) n @ fix_nodes num_nodes nodegen (Some xs)
+                    | String s -> s :: fix_nodes num_nodes nodegen (Some xs) ))
 
-let rec fix_outputs (ins,outs) = function
-  | None -> generate_output_nodes outs
-  | Some(xs) ->
-  (match xs with
-    | [] -> []
-    | x::xs -> (match type_port x with
-                    | Number n -> generate_output_nodes n @ fix_outputs (ins,outs) (Some xs)
-                    | String s -> s :: fix_outputs (ins,outs) (Some xs) ))
-
+(* Replace the port names for all of the inputs and outputs to a box/morphism *)
+(* This updates the morphism to the 'fixed' version where we use the definition of the box to set up any ports needed *)
 let rec replace_morphism_ports = function
   | Identity                  -> Identity
   | Morphism (m,ins,outs)     ->  if Hashtbl.mem morphisms m then
                                     let (is,os) = Hashtbl.find morphisms m in
-                                    let ins'  = fix_inputs (is,os) ins in
-                                    let outs' = fix_outputs (is,os) outs in
-                                    Hashtbl.add ports m (ins',outs');
+                                    let ins'  = fix_nodes is (inputNode) ins in
+                                    let outs' = fix_nodes os (outputNode) outs in
                                     Morphism(m,Some(ins'),Some(outs'))
                                   else
-                                    let r = 10 in
-                                    printf "Looking up %s\n" m;
                                     let m' = Hashtbl.find morphism_names m in
-                                    printf "Looking up %s\n" m';
                                     let (is,os) = Hashtbl.find morphisms m' in
-                                    let ins'  = fix_inputs (is,os) ins in
-                                    let outs' = fix_outputs (is,os) outs in
-                                    Hashtbl.add ports m (ins',outs');
+                                    let ins'  = fix_nodes is (inputNode) ins in
+                                    let outs' = fix_nodes os (outputNode) outs in
                                     Morphism(m,Some(ins'),Some(outs'))
 
   | Tensor(a,b)                  -> Tensor((replace_morphism_ports a),(replace_morphism_ports b))
   | Composition(f,g)             -> Composition((replace_morphism_ports f),(replace_morphism_ports g))
   | Subdiagram(name, diagram,ins,outs) -> Subdiagram(name, (replace_morphism_ports diagram),ins,outs)
 
+(* Recurse over the tree updating any occurrences of subdiagrams with each box and wire renamed *)
 let rec replace_subdiagrams = function
-  | Identity                  -> Identity
-  | Morphism (m,ins,outs)     -> Morphism (m,ins,outs)
+  | Identity                     -> Identity
+  | Morphism (m,ins,outs)        -> Morphism (m,ins,outs)
   | Tensor(a,b)                  -> Tensor((replace_subdiagrams a),(replace_subdiagrams b))
   | Composition(f,g)             -> Composition((replace_subdiagrams f),(replace_subdiagrams g))
   | Subdiagram(name, _,_,_) ->
       try let (Subdiagram(name', diagram',ins',outs')) = Hashtbl.find modules name in
             Subdiagram(name',diagram',ins',outs')
       with
-        | Not_found -> failwith "Could not replace subdiagrams"
+        | Not_found -> failwith "Failed to preprocess subdiagrams. Are all modules are defined and referenced correctly?"
 
+(* Rename wire to new internal representation of wires *)
 let rename_wire x = match (List.hd (type_inputs [x])) with
   | Number n -> n |> string_of_int
   | String s -> let new_name = wire() in
@@ -263,13 +266,13 @@ let rec rename_links = function
                         let o = Hashtbl.find wire_names y in
                             (Wire(i,o)) :: rename_links xs
                       with
-                        | Not_found -> failwith "Could not find wires"
+                        | Not_found -> failwith "Could not preprocess wires defined in modules. Are all of the wires called correctly?"
 
 let rec rename_ports = function
   | Identity                -> Identity
   | Morphism(m,ins,outs) ->  let (i,o) = ((List.length >>= ins), (List.length >>= outs)) in
-                             let ins' = fix_inputs (i,o) ins in
-                             let outs'= fix_outputs (i,o) outs in
+                             let ins' = fix_nodes i (inputNode) ins in
+                             let outs'= fix_nodes o (outputNode) outs in
                              Morphism(m, Some(ins'), Some(outs'))
   | Tensor(d1,d2)           -> Tensor(rename_ports d1, rename_ports d2)
   | Composition(d1,d2)      -> Composition(rename_ports d1, rename_ports  d2)
@@ -285,9 +288,8 @@ let rec rename_morphs boxes = function
                                 | None      -> None
                                 | Some(xs)  -> Some(List.map rename_wire xs)) in
                                let (i,o) = lookup name boxes in
-                               let ins' = fix_inputs (i,o) new_ins in
-                               let outs'= fix_outputs (i,o) new_outs in
-                               printf "Adding %s --> %s\n" name new_name;
+                               let ins' = fix_nodes i (inputNode) new_ins in
+                               let outs'= fix_nodes o (outputNode) new_outs in
                                Hashtbl.add morphisms new_name (i,o);
                                Hashtbl.add morphism_names name new_name;
                                Morphism(name, Some(ins'), Some(outs'))
@@ -303,17 +305,17 @@ let rec name = function
   | Subdiagram (n, _, _, _) -> n
 
 let rec getOutputs = function
-  | Identity             -> []
-  | Morphism(_,_,outs) -> list_of outs
-  | Tensor(a,b)          -> getOutputs a @ getOutputs b
-  | Composition(f,g)     -> getOutputs f @ getOutputs g
+  | Identity               -> []
+  | Morphism(_,_,outs)     -> list_of outs
+  | Tensor(a,b)            -> getOutputs a @ getOutputs b
+  | Composition(f,g)       -> getOutputs f @ getOutputs g
   | Subdiagram(_,_,_,outs) -> list_of outs
 
 let rec getInputs = function
-  | Identity             -> []
-  | Morphism(m,ins,_) -> printf "\nGetting inputs from %s\n" m; list_of ins
-  | Tensor(a,b)          -> getInputs a @ getInputs b
-  | Composition(f,g)     -> printf "\nComposition of %s ; %s\n" (name f) (name g); getInputs f @ getInputs g
+  | Identity              -> []
+  | Morphism(m,ins,_)     -> list_of ins
+  | Tensor(a,b)           -> getInputs a @ getInputs b
+  | Composition(f,g)      -> getInputs f @ getInputs g
   | Subdiagram(_,_,ins,_) -> list_of ins
 
 let rec connect  = function
@@ -334,10 +336,8 @@ let rec draw_structurally x y tree styles =
         "\t\\draw [black] (" ^ empty_left ^ ".east) -- (" ^ empty_right ^ ".west);\n"
     | Morphism (m,ins,outs) ->
         let morph   = draw_morphism m (x+.(!box_spacing)) y styles in
-        printf "Adding morph %s to table\n" m;
         let inps  = gen_inputs  x y (list_of ins) in
         let outps = gen_outputs x y (list_of outs) in
-        printf "\n";
         Hashtbl.add morphismLocations m (Point((x+.(!box_spacing)), y));
         inps ^ outps ^ morph ^  "\n"
     | Tensor(a,b)               ->
@@ -359,15 +359,16 @@ let rec draw_structurally x y tree styles =
 let tup = function
   | Wire(inp, outp) -> (inp,outp)
 
+(* When calling List.map with a function that returns type unit, Core types this as a unit list, where ocamlbuild types as unit *)
+(* This function is used to make sure that both compilers will compile the maps *)
 let un = function
   | _ -> ()
 
 let unwrap_def_list = function
   | [] -> []
   | (Definition(b_list, w_list)::_) ->
-      printf "Length of wire list: %i\n" (List.length (list_of w_list));
-      un (List.map (fun wire -> let (inp, outp) = tup wire in printf "Adding link %s -> %s\n" inp outp; Hashtbl.add links inp outp) (list_of w_list));
-      b_list (* we can discard the tail because the list is only being used so we either have 0 or 1 definitions *)
+      un (List.map (fun wire -> let (inp, outp) = tup wire in Hashtbl.add links inp outp) (list_of w_list));
+      b_list (* we can discard the tail because the list is only being used so we either have 0 or 1 definitions in the parser *)
 
 let add_styles (Box (b,_, _, style)) = match style with
   | None -> ""
@@ -401,10 +402,10 @@ let rec extract_boxes ms bs = match (ms, bs) with
   | (Module(_, b_list, _, _)::xs), [] -> b_list @ (extract_boxes xs [])
   | (Module(_, b_list, _, _)::xs), (Definition(b_list', _)::xs') -> b_list @ b_list' @ (extract_boxes xs xs')
 
+(* Get the locations of all of the ports for the bitmap *)
 let rec getNodeLocations = function
   | []                         -> []
   | ((x, y)::xs) -> try
-                      printf "linking %s to %s\n" x y;
                       let (from_nx,from_ny)    = (Hashtbl.find nodes x) in
                       let (from_nx', from_ny') = ((from_nx |> float_of_string),(from_ny |> float_of_string)) in
                       let (to_nx, to_ny)       = (Hashtbl.find nodes y) in
@@ -413,7 +414,7 @@ let rec getNodeLocations = function
                       Hashtbl.remove nodes y;
                       ((to_nx',to_ny'),(from_nx', from_ny') ) :: (getNodeLocations xs)
                     with
-                      | Not_found -> failwith "Could not get node loc"
+                      | Not_found -> failwith "Failed to link wires correctly. Are all of the explicit ports named correctly?"
 
 let path_prefix (x,y) =
   "\t\\draw[black, rounded corners = 3pt] (" ^ (x |> string_of_float) ^ "," ^ (y |> string_of_float) ^ ") -- "
@@ -471,8 +472,6 @@ let compile_program = function
           let styling = boxes |> List.map add_styles |> List.fold_left (^) "" in
           update_morphism_table (unwrap_def_list def_list);
           let fixed_diag = replace_morphism_ports diag in
-
-          printf "\n--------------\n%s\n--------------\n" (name fixed_diag);
 
           (* Draw out the body and connect all of the connectable and dangling ports *)
           let body = (draw_structurally 0.0 5.0 fixed_diag boxes_with_styling)  in
