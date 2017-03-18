@@ -25,11 +25,11 @@ type program =
 
 (* Pretty printing for the AST *)
 let rec string_of_diagram = function
-  | Identity                         -> "Identity"
+  | Identity                         -> "-1-"
   | Morphism (m, ins, outs)          -> m
-  | Tensor (f,g)                     -> "Tensor(" ^ string_of_diagram f ^ ", " ^ string_of_diagram g ^ ")"
-  | Composition (f,g)                -> "Composition(" ^ (string_of_diagram f) ^ "," ^ (string_of_diagram g) ^"  )"
-  | Subdiagram (name, diagram', ins, outs) -> string_of_diagram diagram'
+  | Tensor (f,g)                     -> "Tensor(" ^ string_of_diagram f ^ "," ^ string_of_diagram g ^ ")"
+  | Composition (f,g)                -> "Composition(" ^ (string_of_diagram f) ^ "," ^ (string_of_diagram g) ^")"
+  | Subdiagram (name, diagram', ins, outs) -> "Subdiagram(" ^ name ^ ")"
 
 let string_of_top = function
   | Program(module_list, diagram_list, diagram') -> string_of_diagram diagram'
@@ -40,15 +40,22 @@ type priority =
     | OccupiedVertical
     | Blocked
 
-  type node = {
-      name : string;
-      xLoc : int;
-      yLoc : int;
-      status : priority;
-      successors : string option list;
-      parent : string;
-      cost : int;
-  }
+type node = {
+    name : string;
+    xLoc : int;
+    yLoc : int;
+    status : priority;
+    successors : string option list;
+    parent : string;
+    cost : int;
+}
+
+(* Ports on boxes can either be a number describing the number of ports, or a string name given explicitly to the port *)
+type port =
+  | Number of int
+  | String of string
+  | Fork of port
+  | Join of port
 
 type module_sub_box =
   | SubBox of string * int * int * string list * string list

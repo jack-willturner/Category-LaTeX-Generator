@@ -1,0 +1,4 @@
+(* TEST: explicit fork of wires *)
+box f : 1 -> 2;
+box g : 2 -> 1.
+link x y, i j. f[x,i] ; [j, y]g

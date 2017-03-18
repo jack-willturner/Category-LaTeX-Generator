@@ -5,6 +5,7 @@ open Printf
 open Bitmap
 
 (* Symbol tables for different types of diagram entity *)
+(* Descriptions of all of the tables in the comments on the right are of the format: <key> | <value> *)
 let morphisms         = Hashtbl.create 64         (* f | 1,3              : specifies that entry f has 1 input and 3 outputs *)
 let links             = Hashtbl.create 64         (* x | y                : specifies that port x is linked to port y *)
 let morphismLocations = Hashtbl.create 64         (* f | Point(x, y)      : gives location of box f *)
@@ -38,11 +39,6 @@ let (>>=) f = function
   | None -> f []
   | Some x -> f x
 
-(* Ports on boxes can either be a number describing the number of ports, or a string name given explicitly to the port *)
-type port =
-  | Number of int
-  | String of string
-
 (* Prefixes for the file generation *)
 let tex_open = "\\documentclass{article}\n" ^
     "\\usepackage[utf8]{inputenc}\n"    ^
@@ -70,7 +66,7 @@ let suffix  = "\\end {tikzpicture}\n\\end{document}\n"
 (* These then get compiled down into nodes, which can be connected using the search algorithm *)
 let rec generate_nodes node_generator = function
   | 0 -> []
-  | n -> (node_generator ()) :: generate_nodes (node_generator) (n-1)
+  | n -> let n' = abs(n) in (node_generator ()) :: generate_nodes (node_generator) (n'-1)
 
 (* Loop through the list of morphisms, adding each one to the hashtbl *)
 let rec update_morphism_table = function
@@ -125,6 +121,17 @@ let rec flatten_port_list = function
       )
 
 (* Generate the input ports for a given box at location (x,y), given a list of inputs *)
+(* ALGORITHM FOR FORK AND JOIN *)
+(* Keep a Hashtbl list of all of the forked ports *)
+(* Lookup every port in the Hashtbl, might be hard for modules *)
+
+let rec print_list = function
+  | [] -> ()
+  | [x] -> printf "%s\n" x
+  | x::xs -> printf "%s," x; print_list xs
+
+(* Representing fork/joins *)
+(*    ports that end with a < or a > *)
 let gen_inputs x y = function
   | []     -> ""
   | xs'    ->
@@ -133,16 +140,30 @@ let gen_inputs x y = function
             let base = y -. (!pixel_b_size) in
             for i = 0 to (List.length xs - 1) do
               let curr_input = List.nth xs i in
+              let from_x   = x  |> string_of_float in
 
-              let from_y' = (base +. float (i+1) *. spacing) in
-              let from_y'' = from_y' *. 10.0 |> int_of_float |> float_of_int in
-              let from_y = from_y'' /. 10.0 |> string_of_float in
-
+              let from_y'  = (base +. float (i+1) *. spacing) in
+              let from_y'' = from_y'  *. 10.0 |> int_of_float |> float_of_int in
+              let from_y'''= from_y'' /. 10.0 in  (* rounded to 2dp *)
+              let from_y   = from_y''' |> string_of_float in
               let to_x = x +. (!box_spacing) -. (!pixel_b_size) |> string_of_float in
               let to_y = from_y in
+              let mid_x = x +. ((to_x |> float_of_string) -. x /. 2.0) |> string_of_float in
 
-              (match curr_input with
-                | str -> Hashtbl.add nodes str (to_x, to_y)
+              let upper_join = from_y''' +. (spacing *. 0.5) |> string_of_float in
+              let lower_join = from_y''' -. (spacing *. 0.5) |> string_of_float in
+
+              (match curr_input.[String.length curr_input - 1] with
+                | '>' -> (* Read this as a JOIN *)
+                        "\\draw[black, rounded corners = 3pt] (" ^ from_x ^ "," ^ upper_join ^ ") -- (" ^ mid_x ^ "," ^ from_y ^ ") -- ( " ^ to_x ^ "," ^ from_y ^ ");\n" ^
+                        "\\draw[black, rounded corners = 3pt] (" ^ from_x ^ "," ^ lower_join ^ ") -- (" ^ mid_x ^ "," ^ from_y ^ ") -- ( " ^ to_x ^ "," ^ from_y ^ ");\n" |> Buffer.add_string temporary;
+                        Hashtbl.add nodes (curr_input ^ "UPPER") (to_x, upper_join);
+                        Hashtbl.add nodes (curr_input ^ "LOWER") (to_x, lower_join)
+                | '<' -> (* Read this as a FORK *)
+                        "\\draw[black, rounded corners = 3pt] (" ^ from_x ^ "," ^ from_y ^ ") -- (" ^ mid_x ^ "," ^ from_y ^ ") -- ( " ^ to_x ^ "," ^ upper_join ^ ");\n" ^
+                        "\\draw[black, rounded corners = 3pt] (" ^ from_x ^ "," ^ from_y ^ ") -- (" ^ mid_x ^ "," ^ from_y ^ ") -- ( " ^ to_x ^ "," ^ lower_join ^ ");\n" |> Buffer.add_string temporary;
+                        Hashtbl.add nodes curr_input (from_x, from_y);
+                | _   -> Hashtbl.add nodes curr_input (to_x, to_y)
               )
             done;
             let wire_drawing = Buffer.contents temporary in
@@ -164,8 +185,25 @@ let gen_outputs x y = function
             let from_y'' = from_y' *. 10.0 |> int_of_float |> float_of_int in
             let from_y =  from_y'' /. 10.0 |> string_of_float in
 
-            ( match curr_input with
-              | str -> printf "\tAdding node %s to hashtbl\n" str; Hashtbl.add nodes str (from_x, from_y)
+            let upper_join = (from_y |> float_of_string) +. (spacing *. 0.5) |> string_of_float in
+            let lower_join = (from_y |> float_of_string) -. (spacing *. 0.5) |> string_of_float in
+
+            let to_x   = x +. !box_spacing +. !pixel_b_size +. (!box_spacing /. 2.0) |> string_of_float in
+            let to_y = from_y in
+            let fst_x = (from_x |> float_of_string) +. (!box_spacing /. 4.0) |> string_of_float in
+            let snd_x = (to_x|> float_of_string) -. (!box_spacing /. 4.0)  |> string_of_float in
+
+            (match curr_input.[String.length curr_input - 1] with
+              | '>' -> (* Read this as a JOIN *)
+                  "\\draw[black, rounded corners = 3pt] (" ^ from_x ^ "," ^ upper_join ^ ") -- (" ^ snd_x ^ "," ^ from_y ^ ") -- ( " ^ to_x ^ "," ^ from_y ^ ");\n" ^
+                  "\\draw[black, rounded corners = 3pt] (" ^ from_x ^ "," ^ lower_join ^ ") -- (" ^ snd_x ^ "," ^ from_y ^ ") -- ( " ^ to_x ^ "," ^ from_y ^ ");\n" |> Buffer.add_string temporary;
+                  Hashtbl.add nodes curr_input (to_x, to_y);
+              | '<' -> (* Read this as a FORK *)
+                  "\\draw[black, rounded corners = 3pt] (" ^ from_x ^ "," ^ from_y ^ ") -- (" ^ fst_x ^ "," ^ from_y ^ ") -- (" ^ snd_x ^ "," ^ upper_join ^ ") -- ( " ^ to_x ^ "," ^ upper_join ^ ");\n" ^
+                  "\\draw[black, rounded corners = 3pt] (" ^ from_x ^ "," ^ from_y ^ ") -- (" ^ fst_x ^ "," ^ from_y ^ ") -- (" ^ snd_x ^ "," ^ lower_join ^ ") -- ( " ^ to_x ^ "," ^ lower_join ^ ");\n" |> Buffer.add_string temporary;
+                  Hashtbl.add nodes (curr_input ^ "UPPER") (to_x, upper_join);
+                  Hashtbl.add nodes (curr_input ^ "LOWER") (to_x, lower_join)
+              | _   -> Hashtbl.add nodes curr_input (from_x, from_y)
             )
           done;
           let wire_drawing = Buffer.contents temporary in
@@ -331,6 +369,9 @@ let rec draw_structurally x y tree styles =
     | Identity                  ->
         let empty_left = hiddenNode() in
         let empty_right = hiddenNode() in
+        let input = inputNode() in
+        let output = outputNode() in
+        Hashtbl.add nodes input ((x|>string_of_float),(y|>string_of_float));
         "\t\\node (" ^ empty_left  ^ ")\tat (" ^ (x |> string_of_float) ^ "," ^ (y |> string_of_float) ^ ")\t\t{}\n" ^
         "\t\\node (" ^ empty_right ^ ")\tat (" ^ ((x+.(!box_spacing))|>string_of_float) ^ "," ^ (y|>string_of_float) ^ ")\t\t{}\n" ^
         "\t\\draw [black] (" ^ empty_left ^ ".east) -- (" ^ empty_right ^ ".west);\n"
@@ -364,16 +405,32 @@ let tup = function
 let un = function
   | _ -> ()
 
+(* Cases that matter: inp last is < (then we use upper and lower) *)
+(*                    outp last is > *)
+let preprocess_explicit_link = function
+  | Wire(inp,outp) -> if inp.[String.length inp - 1] = '<' then
+                        if outp.[String.length outp - 1] = '>' then begin
+                          Hashtbl.add links (inp ^ "UPPER") (outp ^ "UPPER");
+                          Hashtbl.add links (inp ^ "LOWER") (outp ^ "LOWER") end
+                        else begin
+                          printf "Warning: you have connected a forked wire to a non-joined wire\n";
+                          Hashtbl.add links (inp ^ "UPPER") (outp);
+                          Hashtbl.add links (inp ^ "LOWER") (outp)
+                        end
+                      else begin
+                        Hashtbl.add links inp outp
+                      end
+
 let unwrap_def_list = function
   | [] -> []
   | (Definition(b_list, w_list)::_) ->
-      un (List.map (fun wire -> let (inp, outp) = tup wire in Hashtbl.add links inp outp) (list_of w_list));
+      un (List.map preprocess_explicit_link (list_of w_list));
       b_list (* we can discard the tail because the list is only being used so we either have 0 or 1 definitions in the parser *)
 
 let add_styles (Box (b,_, _, style)) = match style with
   | None -> ""
   | Some(colour, shape) ->
-    "\\tikzstyle{" ^ b ^ "} = [minimum size ="^ (!box_size |> string_of_float)^"cm, right = 10mm, thick " |> Buffer.add_string temporary;
+    "\\tikzstyle{" ^ b ^ "} = [minimum size ="^ (!box_size |> string_of_float)^"cm, thick " |> Buffer.add_string temporary;
     let shp = (match shape with
       | None -> ",rectangle"
       | Some("CIRCLE") -> ",circle"
@@ -384,6 +441,7 @@ let add_styles (Box (b,_, _, style)) = match style with
       | Some("BLACK") -> ",draw=black, fill=black]\n"
       | Some("RED")   -> ",draw=red, fill=red]\n"
       | Some("BLUE")  -> ",draw=blue, fill=blue]\n"
+      | Some("WHITE") -> ",draw=black, fill=white]\n"
       | _             -> failwith "Colour not recognised")
     in col |> Buffer.add_string temporary;
     let styles = Buffer.contents temporary in
@@ -462,6 +520,7 @@ let compile_program = function
 
           (* Module Preprocessing *)
           (* need to compile all of the modules into subdiagrams of the form Subdiagram(name,diag,ins,outs) *)
+          (* We use `un` to fake a unit type for the Core compiler (explained in the comments on the `un` function) *)
           un(List.map module_to_subdiag module_list);
 
           let diag = replace_subdiagrams diag' in

@@ -9,7 +9,20 @@ open Ast
 
 let fileno = ref 0
 
-let test_files = ["test/test1";"test/test2";"test/test3";"test/test4";"test/test5";"test/test6";"test/test7";"test/test8";"test/test9";"test/test10"]
+let test_files = ["test/parser/test1";"test/parser/test2";"test/parser/test3";"test/parser/test4";"test/parser/test5";"test/parser/test6";"test/parser/test7";"test/parser/test8";"test/parser/test9";"test/parser/test10"]
+
+let expected_output1 = "Composition(f,Composition(g,Composition(g,h)))"
+let expected_output2 = "Tensor(Tensor(Composition(f,Composition(g,g)),Composition(g,Composition(g,g))),Composition(g,Composition(g,h)))"
+let expected_output3 = "Composition(Tensor(Tensor(f,f),f),Composition(Tensor(Tensor(g,g),g),Tensor(Tensor(h,h),h)))"
+let expected_output4 = "f"
+let expected_output5 = "Composition(f,g)"
+let expected_output6 = "Composition(f,g)"
+let expected_output7 = "Composition(f,g)"
+let expected_output8 = "Composition(f,Composition(g,h))"
+let expected_output9 = "Tensor(Subdiagram(m),-1-)"
+let expected_output10 = "Composition(f,Composition(f,Composition(f,Composition(f,Composition(f,Composition(f,Composition(f,Composition(f,Composition(f,Composition(f,f))))))))))"
+
+let expected_outputs = [expected_output1;expected_output2;expected_output3;expected_output4;expected_output5;expected_output6;expected_output7;expected_output8;expected_output9;expected_output10]
 
 let rec read_to_empty buf in_channel =
 	Lexer.lineno := 1;
@@ -45,7 +58,11 @@ let run_test filename =
 	|> Lexing.from_string
 	|> parse_with_error
 	|> Ast.string_of_top in
-  printf "%s\n" actual_result
+	let expected_result = (List.nth expected_outputs (!fileno - 1)) in
+  if actual_result = expected_result then
+		printf "%s passed test\n" filename
+	else
+		printf "%s failed test\nOUTPUT:   %s\nEXPECTED: %s\n\n" filename actual_result expected_result
 
 
 let main = List.map run_test test_files
@@ -53,7 +70,6 @@ let main = List.map run_test test_files
 let rec map_with_print f ls =
 	match ls with
 	| [] 		-> []
-	| x::xs 	-> printf "Parsing %s\n" x;
-				   f x :: map_with_print f xs
+	| x::xs 	-> f x :: map_with_print f xs
 
 let _ = main

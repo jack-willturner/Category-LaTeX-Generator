@@ -1,0 +1,4 @@
+(* TEST : Composition with one dangling wire *)
+box f : 1 -> 3;
+box g : 2 -> 1.
+f ; g
