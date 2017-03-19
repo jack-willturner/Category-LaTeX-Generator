@@ -180,21 +180,21 @@ let rec strategy' oldf newf visited goal cost_so_far = match newf with
                 and p = parent
                 and c = cost in
                 if parent = "" then
-                  let parent_cost = 0 in
-                  Hashtbl.replace graph x {name; xLoc; yLoc; status; successors; parent;cost=(parent_cost+1)};
-                  strategy' (PrioQueue.insert oldf (manhattan_dist + (parent_cost+10)) x visited) xs visited goal cost_so_far
+                  let parent_cost = 10 in
+                  Hashtbl.replace graph x {name; xLoc; yLoc; status; successors; parent;cost=(parent_cost)};
+                  strategy' (PrioQueue.insert oldf (manhattan_dist + (parent_cost)) x visited) xs visited goal cost_so_far
                 else
                   let {name; xLoc; yLoc; status; successors; parent;cost} = Hashtbl.find graph parent in
                   let parent_cost = cost + 10 in
-                  if direction x = Blocked then
-                    let dummyval = 10 in (* dummy value used to allow unit type of Hashtbl.replace *)
+                  if direction x = Blocked then begin
                     (* If x is trying to turn a corner, then we add an additional cost of 5 to smooth out paths *)
-                    Hashtbl.replace graph x {name = n; xLoc = xL; yLoc = yL; status = stat; successors = succ; parent = p;cost=(parent_cost+5)};
-                    strategy' (PrioQueue.insert oldf (manhattan_dist + (parent_cost+5)) x visited) xs visited goal cost_so_far
-                  else
-                    let dummyval = 10 in (* dummy value used to allow unit type of Hashtbl.replace *)
+                    Hashtbl.replace graph x {name = n; xLoc = xL; yLoc = yL; status = stat; successors = succ; parent = p;cost=(parent_cost + 5)};
+                    strategy' (PrioQueue.insert oldf (manhattan_dist + (parent_cost + 5)) x visited) xs visited goal cost_so_far
+                  end
+                  else begin
                     Hashtbl.replace graph x {name = n; xLoc = xL; yLoc = yL; status = stat; successors = succ; parent = p;cost=(parent_cost)};
                     strategy' (PrioQueue.insert oldf (manhattan_dist + (parent_cost)) x visited) xs visited goal cost_so_far
+                  end
 
 let scale_down box_size (x,y) =
       let x' = float (x) /. 10.0 in
@@ -314,4 +314,4 @@ let rec find_route = function
      let height'  = height * 10  + (box_size * 10) in (* height of the whole frame *)
      generate_adjacency_lists (width') (height');
      place_morphisms (box_size) (scale_up' box_size boxes);
-     scale_up (float box_size) wires |> find_route |> List.map (List.map coord_of_string) |> List.map (List.map (scale_down box_size)) |> List.map corners |> List.map remove_duplicates
+     scale_up (float box_size) wires |> find_route |> List.map (List.map coord_of_string) |> List.map (List.map (scale_down box_size)) |> List.map remove_duplicates

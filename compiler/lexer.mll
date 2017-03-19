@@ -29,6 +29,7 @@ rule read =
 	| "*)"        	                {read lexbuf}
 	| '.'    												{DOT}
 	| ','														{COMMA}
+	| '$'														{DOLLAR}
 	| '{'														{OPEN_BRACE}
 	| '}'														{CLOSE_BRACE}
 	| '['														{OPEN_SQUARE}
@@ -46,7 +47,7 @@ rule read =
 	| "module"											{MODULE}
 	| "boxcolour"										{BOXCOLOUR}
 	| "boxshape"										{BOXSHAPE}
-	| "-1-"													{IDENTITY}
+	| "id"													{IDENTITY}
 	| id 	 	  											{STRING (Lexing.lexeme lexbuf)}
 	| eof														{EOF}
 	| _ 		  		 									{ raise (SyntaxError ("Unexpected char: " ^

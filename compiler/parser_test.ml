@@ -3,9 +3,7 @@ open Lexer
 open Printf
 open Ast
 
-
-(* This file compiles and tests both the parser and the evaluator *)
-
+(* This file compiles and tests the parser *)
 
 let fileno = ref 0
 

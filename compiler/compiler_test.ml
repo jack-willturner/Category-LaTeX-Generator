@@ -6,7 +6,7 @@ open Ast
 
 (* This file contains tests for each individual non-trivial function in the compiler  *)
 let failures  = Hashtbl.create 100 (* Function name | (actual output, expected output) *)
-let nodes 		= Hashtbl.create 100 (* for testing the gen_inputs function *)
+(*let nodes 		= Hashtbl.create 100  for testing the gen_inputs function *)
 
 let test func actual expected =
 	if actual = expected then () else Hashtbl.add failures func "Failure"
@@ -47,6 +47,7 @@ let generate_nodes_test =
 
 (* Copied from Compiler - algorithmically identical but output changed from unit
    adding to Hashtbl to a (string * string) list for ease of testing *)
+	(*
 let gen_inputs x y = function
   | []     -> ""
   | xs'    ->
@@ -78,7 +79,7 @@ let gen_inputs_test =
 	let input_drawing4 = gen_inputs 5 5 [1,x]   in
 	let input_drawing5 = gen_inputs 5 5 [x,1]   in
 	let input_drawing6 = gen_inputs 5 5 [1,x,1] in
-	test "gen_inputs"
+	test "gen_inputs" *)
 
 
 (* TODO:

@@ -7,6 +7,7 @@
 
 /****** TOKENS ******/
 %token IDENTITY
+%token DOLLAR
 %token OPEN_SQUARE CLOSE_SQUARE OPEN_ANGLE CLOSE_ANGLE
 %token OPEN_BRACE CLOSE_BRACE
 %token OPEN_BRACKET CLOSE_BRACKET
@@ -48,7 +49,7 @@ diagram:
   | OPEN_BRACKET; d = diagram; CLOSE_BRACKET;                      {d}
   | d1 = diagram; SEMICOLON; d2 = diagram                          {Composition(d1, d2)}
   | e=diagram;    BAR;  f = diagram                                {Tensor (e,f)}
-  | ins = option(params); OPEN_ANGLE; subdiagramID = STRING; CLOSE_ANGLE; outs = option(params)  {Subdiagram(subdiagramID, Identity, ins, outs)}
+  | ins = option(params); DOLLAR; subdiagramID = STRING; outs = option(params)  {Subdiagram(subdiagramID, Identity, ins, outs)}
 
 link_list:
   | LINK; w_list = separated_list(COMMA,wire_def); DOT              {w_list}

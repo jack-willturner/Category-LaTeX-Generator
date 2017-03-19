@@ -380,12 +380,12 @@ let rec draw_structurally x y tree styles =
   match tree with
     | Identity                  ->
         let empty_left = hiddenNode() in
-        let empty_right = hiddenNode() in
+        let empty_right = hiddenNode() in (*
         let input = inputNode() in
         let output = outputNode() in
-        Hashtbl.add nodes input ((x|>string_of_float),(y|>string_of_float));
-        "\t\\node (" ^ empty_left  ^ ")\tat (" ^ (x |> string_of_float) ^ "," ^ (y |> string_of_float) ^ ")\t\t{}\n" ^
-        "\t\\node (" ^ empty_right ^ ")\tat (" ^ ((x+.(!box_spacing))|>string_of_float) ^ "," ^ (y|>string_of_float) ^ ")\t\t{}\n" ^
+        Hashtbl.add nodes input ((x|>string_of_float),(y|>string_of_float)); *)
+        "\t\\node [empty] (" ^ empty_left  ^ ")\tat (" ^ (x |> string_of_float) ^ "," ^ (y |> string_of_float) ^ ")\t\t{};\n" ^
+        "\t\\node [empty] (" ^ empty_right ^ ")\tat (" ^ ((x+.(!box_spacing))|>string_of_float) ^ "," ^ (y|>string_of_float) ^ ")\t\t{};\n" ^
         "\t\\draw [black] (" ^ empty_left ^ ".east) -- (" ^ empty_right ^ ".west);\n"
     | Morphism (m,ins,outs) ->
         let morph   = draw_morphism m (x+.(!box_spacing)) y styles in
@@ -424,6 +424,8 @@ let preprocess_explicit_link = function
                         if outp.[String.length outp - 1] = '>' then begin
                           Hashtbl.add links (inp ^ "UPPER") (outp ^ "UPPER");
                           Hashtbl.add links (inp ^ "LOWER") (outp ^ "LOWER")
+                        end else begin
+
                         end
                       else begin
                         Hashtbl.add links inp outp
@@ -483,7 +485,7 @@ let rec getNodeLocations = function
                       | Not_found -> failwith ("Failed to link wire " ^ x ^ " to wire " ^ y ^ ". Are all of the explicit ports named correctly?")
 
 let path_prefix (x,y) =
-  "\t\\draw[black, rounded corners = 3pt] (" ^ (x |> string_of_float) ^ "," ^ (y |> string_of_float) ^ ") -- "
+  "\t\\draw[black] (" ^ (x |> string_of_float) ^ "," ^ (y |> string_of_float) ^ ") -- "
 (*, rounded corners = 3pt*)
 
 let rec print_path = function
