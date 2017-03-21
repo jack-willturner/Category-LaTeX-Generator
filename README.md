@@ -1,18 +1,18 @@
 # The Category Compiler
 This is the repository that will be used to manage the code for my final year project at the University of Birmingham. The tool itself will be a web-based application that allows users to describe the string-diagrams of monoidal categories using the syntax defined below. The compiler will then compute and generate the corresponding LaTeX to draw the diagram.
 
-Currently the main features are all working (with a few bugs) but the tool is command-line based. 
+Currently the main features are all working (with a few bugs) but the tool is command-line based.
 
-# Installation instructions 
+# Installation instructions
 Packages you'll need to have installed:
 * OCaml 4.04.0
 * ocamlbuild
-* ocamlfind 
+* ocamlfind
 * menhir
-* some tex builder 
+* pdflatex
 * corebuild
 
-# Compiling your diagrams 
+# Compiling your diagrams
 Clone the repository into your chosen directory and move into the compiler directory. Run:
 
 ```
@@ -28,7 +28,7 @@ diagram :=
         | morphism
         | diagram COMPOSE diagram
         | diagram TENSOR diagram
-
+				| diagram
 
 ; = COMPOSE
 | = TENSOR
@@ -42,7 +42,7 @@ For example:
 ```
 box f {boxcolour : RED; boxshape : CIRCLE} : 1 -> 3.
 ```
-Box definitions must be separated by fullstops.
+Box definitions must be separated by semicolons, and a list of boxes should be ended with a full stop.
 
 ## Wires
 The compiler will infer any non-specified links, but the syntax also allows for explicit labels to be given to ports:
@@ -59,6 +59,22 @@ link x y. f[1,x] ; g ; [1,y]h
 ```
 The `[1,x]` after the f specifies that the f has two outputs. The first can be inferred, but the second should be called `x`. The `[1,y]` after the h specifies that `h` has two inputs - the first can be inferred but the second should be called `y`. The compiler will then link `x` to `y` based on the line `link x y.`
 
+Alternatively, if links are trivial then you can remove the `link` syntax and allow the compiler to infer the connections:
+
+```
+box f : 1 -> 2;
+box g : 2 -> 1.
+f ; g
+```
+
+In addition to this, we can also use constants for forking (`<`) and joining (`>`) wires:
+
+```
+box f : 1 -> 2;
+box g : 2 -> 1.
+link x< y>. f[1,x<] ; [1,y>]g
+```
+
 ## Modules
 The syntax can also be used to describe modules, which can then be imported into other files or just used within the same file for neatness. I will write modules for commonly used categories and consider putting them in a 'standard library'.
 
@@ -70,6 +86,6 @@ module m = {
   box h : 2 -> 1.
   link x y. f[1,x] ; g ; [1,y]h
 }
-<m> ; <m>
+$m ; $m
 ```
-where `<m> ; <m>` composes `m` onto itself.
+where `$m ; $m` composes `m` onto itself.
