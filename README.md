@@ -28,7 +28,6 @@ diagram :=
         | morphism
         | diagram COMPOSE diagram
         | diagram TENSOR diagram
-				| diagram
 
 ; = COMPOSE
 | = TENSOR

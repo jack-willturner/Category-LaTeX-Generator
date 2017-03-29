@@ -18,7 +18,7 @@ let temporary         = Buffer.create  64         (* temporary Buffer *)
 (* Default sizings for the boxes *)
 let box_size     = ref 1.25 (* Size of box in tikz units *)
 let pixel_b_size = ref 0.62 (* Size of box in pixels     *)
-let box_spacing  = ref 1.0  (* Vertical and horizontal spacing between boxes *)
+let box_spacing  = ref 10.0  (* Vertical and horizontal spacing between boxes *)
 
 (* Counters used for renaming the variables to internal representations used for scoping *)
 let hiddenNodeCount = ref 0
@@ -485,7 +485,7 @@ let rec getNodeLocations = function
                       | Not_found -> failwith ("Failed to link wire " ^ x ^ " to wire " ^ y ^ ". Are all of the explicit ports named correctly?")
 
 let path_prefix (x,y) =
-  "\t\\draw[black] (" ^ (x |> string_of_float) ^ "," ^ (y |> string_of_float) ^ ") -- "
+  "\t\\draw[black, rounded corners = 3pt] (" ^ (x |> string_of_float) ^ "," ^ (y |> string_of_float) ^ ") -- "
 (*, rounded corners = 3pt*)
 
 let rec print_path = function
@@ -522,12 +522,12 @@ let compile_program = function
           (* Find the width and box sizing for the diagram *)
           let w = width' diag' in
           if w <= 4 then
-            ()  (* if there are less than 5 boxes then leave the box size and spacing at the default *)
+            ()
+            (* if there are less than 5 boxes then leave the box size and spacing at the default *)
           else
             box_size     := 5.0 /. (float w);
             pixel_b_size := !box_size *. 0.5;
             box_spacing  := !box_size *. 1.2;
-
           (* Module Preprocessing *)
           (* need to compile all of the modules into subdiagrams of the form Subdiagram(name,diag,ins,outs) *)
           (* We use `un` to fake a unit type for the Core compiler (explained in the comments on the `un` function) *)

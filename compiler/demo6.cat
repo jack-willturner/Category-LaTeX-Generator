@@ -1,0 +1,9 @@
+module m {
+  box f : 1 -> 1.
+  f
+}
+module n {
+  box g : 1 -> 1.
+  g
+}
+$m ; $n
