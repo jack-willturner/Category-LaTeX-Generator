@@ -25,7 +25,7 @@ rule read =
 	parse
 	| whitespace                    {read lexbuf}
 	| newline 											{incr lineno; read lexbuf}
-	| "(*"		  	                 	{comment lexbuf; read lexbuf}
+	| "(*"		  	                 	{comment 0 lexbuf}
 	| "*)"        	                {read lexbuf}
 	| '.'    												{DOT}
 	| ','														{COMMA}
@@ -39,8 +39,6 @@ rule read =
 	| ';'														{SEMICOLON}
 	| '|'														{BAR}
 	| ':'														{COLON}
-	| '<'														{OPEN_ANGLE}
-	| '>'														{CLOSE_ANGLE}
 	| "->" 													{ARROW}
 	| "box"			                    {BOX}
 	| "link"                      	{LINK}
@@ -52,9 +50,10 @@ rule read =
 	| eof														{EOF}
 	| _ 		  		 									{ raise (SyntaxError ("Unexpected char: " ^
 									 									Lexing.lexeme lexbuf)) }
-and comment =
+
+and comment lvl =
 	parse
-	| "*)" 													{ () }
-	| "\n"													{ incr lineno; comment lexbuf }
-	| _ 														{ comment lexbuf }
-	| eof 													{ () }
+	| "(*" 													{ comment (lvl + 1) lexbuf }
+	| "*)"												  { if lvl <= 0 then read lexbuf else comment (lvl - 1) lexbuf }
+	|	newline												{ incr lineno; Lexing.new_line lexbuf; comment lvl lexbuf }
+	| _ { comment lvl lexbuf }

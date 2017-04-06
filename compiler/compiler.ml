@@ -120,22 +120,16 @@ let rec flatten_port_list = function
         | String s ->  (String s) ::(flatten_port_list xs)
       )
 
-(* Generate the input ports for a given box at location (x,y), given a list of inputs *)
-(* ALGORITHM FOR FORK AND JOIN *)
-(* Keep a Hashtbl list of all of the forked ports *)
-(* Lookup every port in the Hashtbl, might be hard for modules *)
-
 let rec print_list = function
   | [] -> ()
   | [x] -> printf "%s\n" x
   | x::xs -> printf "%s," x; print_list xs
 
+(* Hacky but useful *)
 let round_to_2dp f =
   let f'  = f *. 10.0 |> int_of_float |> float_of_int in
   f' /. 10.0
 
-(* Representing fork/joins *)
-(*    ports that end with a < or a > *)
 let gen_inputs x y = function
   | []     -> ""
   | xs'    ->
@@ -220,7 +214,7 @@ let gen_outputs x y = function
 
 (* This function returns the physical width of a diagram so that the size of the bitmap can be calculated *)
 let rec width = function
-  | Identity  -> !box_spacing +. !pixel_b_size
+  | Identity (_,_,_) -> !box_spacing +. !pixel_b_size
   | Morphism(_, _, _) -> !box_spacing +. !pixel_b_size +. !box_spacing
   | Tensor(a,b) -> max (width a) (width b)
   | Composition(a,b) -> width a +. width b
@@ -228,7 +222,7 @@ let rec width = function
 
 (* The structural width of a diagram *)
 let rec width' = function
-  | Identity  -> 1
+  | Identity (_,_,_)  -> 1
   | Morphism(_, _, _) -> 1
   | Tensor(a,b) -> max (width' a) (width' b)
   | Composition(a,b) -> width' a + width' b
@@ -236,7 +230,7 @@ let rec width' = function
 
 (* The structural height of a diagram *)
 let rec height = function
-  | Identity -> 1
+  | Identity (_,_,_) -> 1
   | Morphism(_,_,_) -> 2
   | Tensor(a,b) -> height a + height b
   | Composition(a,b) -> max (height a) (height b)
@@ -269,7 +263,7 @@ let rec fix_nodes num_nodes nodegen = function
 (* Replace the port names for all of the inputs and outputs to a box/morphism *)
 (* This updates the morphism to the 'fixed' version where we use the definition of the box to set up any ports needed *)
 let rec replace_morphism_ports = function
-  | Identity                  -> Identity
+  | Identity (str,ins,outs)   -> Identity (str,Some(fix_nodes 1 (inputNode) ins),Some(fix_nodes 1 (outputNode) outs))
   | Morphism (m,ins,outs)     ->  if Hashtbl.mem morphisms m then
                                     let (is,os) = Hashtbl.find morphisms m in
                                     let ins'  = fix_nodes is (inputNode) ins in
@@ -288,7 +282,7 @@ let rec replace_morphism_ports = function
 
 (* Recurse over the tree updating any occurrences of subdiagrams with each box and wire renamed *)
 let rec replace_subdiagrams = function
-  | Identity                     -> Identity
+  | Identity (str,ins,outs)      -> Identity (str,ins,outs)
   | Morphism (m,ins,outs)        -> Morphism (m,ins,outs)
   | Tensor(a,b)                  -> Tensor((replace_subdiagrams a),(replace_subdiagrams b))
   | Composition(f,g)             -> Composition((replace_subdiagrams f),(replace_subdiagrams g))
@@ -315,7 +309,7 @@ let rec rename_links = function
                         | Not_found -> failwith "Could not preprocess wires defined in modules. Are all of the wires called correctly?"
 
 let rec rename_ports = function
-  | Identity                -> Identity
+  | Identity (str,ins,outs) -> Identity (str,ins,outs)
   | Morphism(m,ins,outs) ->  let (i,o) = ((List.length >>= ins), (List.length >>= outs)) in
                              let ins' = fix_nodes i (inputNode) ins in
                              let outs'= fix_nodes o (outputNode) outs in
@@ -324,8 +318,9 @@ let rec rename_ports = function
   | Composition(d1,d2)      -> Composition(rename_ports d1, rename_ports  d2)
   | Subdiagram(name, diagram, ins,outs)  -> Subdiagram(name, rename_ports diagram, ins, outs)
 
+(* Same as rename_morphism_ports but for modules *)
 let rec rename_morphs boxes = function
-  | Identity                -> Identity
+  | Identity (str,ins,outs) -> Identity (hiddenNode(),Some(fix_nodes 1 (inputNode) ins),Some(fix_nodes 1 (inputNode) ins))
   | Morphism(name,ins,outs) -> let new_name = module_morph() in
                                let new_ins  = (match ins with
                                 | None      -> None
@@ -344,21 +339,21 @@ let rec rename_morphs boxes = function
   | Subdiagram(name, diagram, ins,outs)  -> Subdiagram(name, rename_morphs boxes diagram, ins, outs)
 
 let rec name = function
-  | Identity                         -> "Identity"
-  | Morphism (m, _, _)          -> m
+  | Identity (str,ins,outs)          -> str
+  | Morphism (m, _, _)               -> m
   | Tensor (f,g)                     -> "Tensor(" ^ name f ^ ", " ^ name g ^ ")"
   | Composition (f,g)                -> "Composition(" ^ (name f) ^ "," ^ (name g) ^")"
   | Subdiagram (n, _, _, _) -> n
 
 let rec getOutputs = function
-  | Identity               -> []
+  | Identity (str,ins,outs)-> list_of outs
   | Morphism(_,_,outs)     -> list_of outs
   | Tensor(a,b)            -> getOutputs a @ getOutputs b
   | Composition(f,g)       -> getOutputs f @ getOutputs g
   | Subdiagram(_,_,_,outs) -> list_of outs
 
 let rec getInputs = function
-  | Identity              -> []
+  | Identity (str,ins,outs) -> list_of ins
   | Morphism(m,ins,_)     -> list_of ins
   | Tensor(a,b)           -> getInputs a @ getInputs b
   | Composition(f,g)      -> getInputs f @ getInputs g
@@ -375,18 +370,15 @@ let rec connect  = function
                        end
 
 let rec draw_structurally x y tree styles =
-  (* Create a grid of max_width * max_height *)
-  (* Scan left to right adding morphisms to boxes *)
   match tree with
-    | Identity                  ->
-        let empty_left = hiddenNode() in
-        let empty_right = hiddenNode() in (*
-        let input = inputNode() in
-        let output = outputNode() in
-        Hashtbl.add nodes input ((x|>string_of_float),(y|>string_of_float)); *)
-        "\t\\node [empty] (" ^ empty_left  ^ ")\tat (" ^ (x |> string_of_float) ^ "," ^ (y |> string_of_float) ^ ")\t\t{};\n" ^
-        "\t\\node [empty] (" ^ empty_right ^ ")\tat (" ^ ((x+.(!box_spacing))|>string_of_float) ^ "," ^ (y|>string_of_float) ^ ")\t\t{};\n" ^
-        "\t\\draw [black] (" ^ empty_left ^ ".east) -- (" ^ empty_right ^ ".west);\n"
+    | Identity (str,ins,outs)    ->
+        let empty_left  = str ^ "i" in
+        let empty_right = str ^ "o" in
+        let x' = round_to_2dp x in
+        let y' = round_to_2dp y in
+        Hashtbl.add nodes (List.hd >>= ins) ((string_of_float x'),(string_of_float y'));
+        Hashtbl.add nodes (List.hd >>= outs) ((string_of_float (x'+.(!box_spacing))), (string_of_float y'));
+        "\t\\draw [black] (" ^ (x' |> string_of_float) ^ ", " ^ (y' |> string_of_float) ^ ") -- (" ^ (x' +. !box_spacing |> string_of_float) ^ "," ^ (y' |> string_of_float)^ ");\n"
     | Morphism (m,ins,outs) ->
         let morph   = draw_morphism m (x+.(!box_spacing)) y styles in
         let inps  = gen_inputs  x y (list_of ins) in
@@ -406,8 +398,7 @@ let rec draw_structurally x y tree styles =
         connect ((Bitmap.remove ls outs),(Bitmap.remove ls ins));
         f' ^ g'
     | Subdiagram(_,diagram,_,_) ->
-        (* Diagram needs to be updated here to have new port names *)
-        draw_structurally x y (diagram) styles
+        draw_structurally x y diagram styles
 
 let tup = function
   | Wire(inp, outp) -> (inp,outp)
@@ -519,6 +510,9 @@ let module_to_subdiag (Module(name,box_list,wire_list',diagram)) =
 
 let compile_program = function
   | Program(module_list, def_list, diag') ->
+          let start = Unix.gettimeofday () in
+
+          printf "\n\n %s \n\n" (Ast.string_of_diagram(diag'));
           (* Find the width and box sizing for the diagram *)
           let w = width' diag' in
           if w <= 4 then
@@ -542,10 +536,13 @@ let compile_program = function
           update_morphism_table (unwrap_def_list def_list);
           let fixed_diag = replace_morphism_ports diag in
 
+          printf "Preprocessed diag: \n\n %s \n" (Ast.string_of_diagram fixed_diag);
+
           (* Draw out the body and connect all of the connectable and dangling ports *)
-          let body = (draw_structurally 0.0 5.0 fixed_diag boxes_with_styling)  in
-          let links_list = (Hashtbl.fold (fun k v acc -> (k, v) :: acc) links [])  in (* (string * string) list *)
-          let box_list   = (Hashtbl.fold (fun _ v acc -> (get_coords v) :: acc) morphismLocations [])  in
+          let body        = (draw_structurally 0.0 5.0 fixed_diag boxes_with_styling)  in
+          let links_list  = (Hashtbl.fold (fun k v acc -> (k, v) :: acc) links [])  in (* (string * string) list *)
+          print_links_list links_list;
+          let box_list    = (Hashtbl.fold (fun _ v acc -> (get_coords v) :: acc) morphismLocations [])  in
           let links_list' = getNodeLocations links_list in
 
           let dangling_ports = (Hashtbl.fold (fun k _ acc -> k :: acc) nodes []) in
@@ -554,4 +551,8 @@ let compile_program = function
           let paths = Bitmap.find_routes links_list' 15 (height diag) (!box_size *. 10.0) box_list in
           let string_drawing_of_wires = List.map draw paths |> List.fold_left (^) ""  in
           let whole = tex_open ^ styling ^ (prefix !box_size) ^ string_drawing_of_wires ^ dangling_wires   ^ body  ^ suffix in
+
+          let stop = Unix.gettimeofday () in
+          printf "\n\n\nExecution time: %fs\n\n\n%!" (stop -. start);
+
           whole

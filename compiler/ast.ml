@@ -1,3 +1,7 @@
+let unwrap_str = function
+  | None    -> ""
+  | Some(s) -> List.hd s (* Maybe monadic bind *)
+
 type box =
   | Box of string * int * int * (string option * string option) option  (* Name, input and output ports *)
 
@@ -6,7 +10,7 @@ type wire =
 
 (* AST for string-diagrams *)
 type diagram =
-  | Identity
+  | Identity of string * string list option * string list option
   | Morphism of string * string list option * string list option
   | Tensor of diagram * diagram
   | Composition of diagram * diagram
@@ -25,8 +29,8 @@ type program =
 
 (* Pretty printing for the AST *)
 let rec string_of_diagram = function
-  | Identity                         -> "-1-"
-  | Morphism (m, ins, outs)          -> m
+  | Identity (str,ins,outs)          -> "[" ^ (unwrap_str  ins) ^ "]id[" ^ (unwrap_str outs) ^ "]"
+  | Morphism (m, ins, outs)          ->  m
   | Tensor (f,g)                     -> "Tensor(" ^ string_of_diagram f ^ "," ^ string_of_diagram g ^ ")"
   | Composition (f,g)                -> "Composition(" ^ (string_of_diagram f) ^ "," ^ (string_of_diagram g) ^")"
   | Subdiagram (name, diagram', ins, outs) -> "Subdiagram(" ^ name ^ ")"

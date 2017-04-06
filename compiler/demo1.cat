@@ -1,4 +1,3 @@
-box f : 1 -> 2;
-box g : 1 -> 1;
-box h : 2 -> 1.
-link x y. f[1,x] ; [y,1]h
+box f : 1 -> 3;
+box g : 3 -> 1.
+link x y, j k. (f[1,x,1] | id[j]) ; ([1,k,1]g | [y]id)

@@ -8,7 +8,7 @@
 /****** TOKENS ******/
 %token IDENTITY
 %token DOLLAR
-%token OPEN_SQUARE CLOSE_SQUARE OPEN_ANGLE CLOSE_ANGLE
+%token OPEN_SQUARE CLOSE_SQUARE
 %token OPEN_BRACE CLOSE_BRACE
 %token OPEN_BRACKET CLOSE_BRACKET
 %token BOX LINK
@@ -44,12 +44,12 @@ params:
   | OPEN_SQUARE; params = separated_list(COMMA, STRING); CLOSE_SQUARE;     {params}
 
 diagram:
-  | IDENTITY                                                       {Identity}
+  | ins = option(params); IDENTITY; outs = option(params)          {Identity("", ins, outs)}
   | ins = option(params); morphID = STRING; outs = option(params)  {Morphism(morphID, ins, outs)}
   | OPEN_BRACKET; d = diagram; CLOSE_BRACKET;                      {d}
   | d1 = diagram; SEMICOLON; d2 = diagram                          {Composition(d1, d2)}
   | e=diagram;    BAR;  f = diagram                                {Tensor (e,f)}
-  | ins = option(params); DOLLAR; subdiagramID = STRING; outs = option(params)  {Subdiagram(subdiagramID, Identity, ins, outs)}
+  | ins = option(params); DOLLAR; subdiagramID = STRING; outs = option(params)  {Subdiagram(subdiagramID, Identity("",None,None), ins, outs)}
 
 link_list:
   | LINK; w_list = separated_list(COMMA,wire_def); DOT              {w_list}

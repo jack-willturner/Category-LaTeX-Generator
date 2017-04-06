@@ -39,7 +39,7 @@ let run_test filename () =
 	read_to_empty (Buffer.create 1) in_channel
 	|> Buffer.contents
 	|> Lexing.from_string
-	|> parse_with_error
+	|> parse_with_error 
 	|> Compiler.compile_program in
 	let output_file = filename ^ ".tex" in
 	let oc = open_out output_file in

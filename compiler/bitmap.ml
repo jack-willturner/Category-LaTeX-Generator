@@ -224,8 +224,8 @@ let rec strategy' oldf newf visited goal cost_so_far = match newf with
                   let parent_cost = cost + 10 in
                   if direction x = Blocked then begin
                     (* If x is trying to turn a corner, then we add an additional cost of 5 to smooth out paths *)
-                    Hashtbl.replace graph x {name = n; xLoc = xL; yLoc = yL; status = stat; successors = succ; parent = p;cost=(parent_cost + 100)};
-                    strategy' (PrioQueue.insert oldf (manhattan_dist + (parent_cost + 100)) x visited) xs visited goal cost_so_far
+                    Hashtbl.replace graph x {name = n; xLoc = xL; yLoc = yL; status = stat; successors = succ; parent = p;cost=(parent_cost+70)};
+                    strategy' (PrioQueue.insert oldf (manhattan_dist + (parent_cost+70)) x visited) xs visited goal cost_so_far
                   end
                   else begin
                     Hashtbl.replace graph x {name = n; xLoc = xL; yLoc = yL; status = stat; successors = succ; parent = p;cost=(parent_cost)};
@@ -251,27 +251,15 @@ let rec scale_up' box_size = function
 | (x,y)::xs -> let xx = int_of_float (x *. 10.0) in
               let yy = y *. 10.0  |> int_of_float in
               ((xx,yy)):: scale_up' box_size xs
-(*
-let rec corners'' = function
- | []          -> []
- | [x]         -> [x]
- | (x,y)::[(x',y')]                -> (x,y)::[(x',y')]
- | (x,y)::(x',y')::(x'',y'')::xs  -> if x == x' && x == x'' then
-                                       corners'' ((x',y')::(x'',y'')::xs)
-                                     else
-                                       if y == y' && y == y'' then
-                                         corners'' ((x',y')::(x'',y'')::xs)
-                                       else
-                                         (x,y) :: corners'' xs *)
+
 
 let rec corners'' = function
   | []          -> []
   | [x]         -> [x]
   | x::y::xs    -> let {name; xLoc; yLoc; status; successors;parent;cost} = Hashtbl.find graph x in
-                   if status=Blocked then begin
-                      printf "\n\n\n BLOCKED CORNER : %s \n\n\n" x;
+                   if status=Blocked then
                       x::corners'' xs
-                   end else corners'' (y::xs)
+                   else corners'' (y::xs)
 
 let last ls = List.rev ls |> List.hd
 
@@ -331,7 +319,6 @@ let last ls = List.rev ls |> List.hd
 
 let reset_costs = Hashtbl.iter (fun n {name;xLoc;yLoc;status;successors;parent;cost} ->  Hashtbl.replace graph n {name;xLoc;yLoc;status;successors;parent="";cost=0}) graph
 
-
 let rec find_route = function
  | []    -> [[]]
  | ((from_x, from_y),(to_x,to_y))::xs ->
@@ -339,6 +326,9 @@ let rec find_route = function
    free_coord ((from_x-3), from_y);
    free_coord (to_x, to_y); (* always want to link left to right *)
    free_coord ((to_x-3), to_y);
+   (* Ensure that the port cannot be entered from below or above - this forces the wires to connect horizontally which gives nicer curves in the diagram*)
+   block_coord (string_of_coord to_x (to_y - 1)); block_coord (string_of_coord to_x (to_y + 1));
+   block_coord (string_of_coord from_x (from_y - 1)); block_coord (string_of_coord from_x (from_y + 1));
    let goal = string_of_coord to_x to_y in
    let start = string_of_coord from_x from_y in
    let fringe = expand start [] in
@@ -350,7 +340,6 @@ let rec find_route = function
    let route   = (search start goal fringe' [start] ) in
    mark_dirs' route;
    reset_costs;
-   print_path route;
    (corners(route @[start]))  :: (find_route xs)
 
 let find_routes wires width height bx_size boxes =
