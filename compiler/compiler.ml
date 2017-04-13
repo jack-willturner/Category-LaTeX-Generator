@@ -139,7 +139,7 @@ let gen_inputs x y = function
             for i = 0 to (List.length xs - 1) do
               let curr_input = List.nth xs i in
 
-              let from_x   = x  |> string_of_float in
+              let from_x   = x   |> string_of_float in
 
               let from_y'  = (base +. float (i+1) *. spacing) in
               let from_y'' = from_y'  *. 10.0 |> int_of_float |> float_of_int in
@@ -320,7 +320,7 @@ let rec rename_ports = function
 
 (* Same as rename_morphism_ports but for modules *)
 let rec rename_morphs boxes = function
-  | Identity (str,ins,outs) -> Identity (hiddenNode(),Some(fix_nodes 1 (inputNode) ins),Some(fix_nodes 1 (inputNode) ins))
+  | Identity (_,ins,outs) -> Identity (hiddenNode(),Some(fix_nodes 1 (inputNode) ins),Some(fix_nodes 1 (outputNode) outs))
   | Morphism(name,ins,outs) -> let new_name = module_morph() in
                                let new_ins  = (match ins with
                                 | None      -> None
@@ -339,22 +339,22 @@ let rec rename_morphs boxes = function
   | Subdiagram(name, diagram, ins,outs)  -> Subdiagram(name, rename_morphs boxes diagram, ins, outs)
 
 let rec name = function
-  | Identity (str,ins,outs)          -> str
+  | Identity (str,_,_)          -> str
   | Morphism (m, _, _)               -> m
   | Tensor (f,g)                     -> "Tensor(" ^ name f ^ ", " ^ name g ^ ")"
   | Composition (f,g)                -> "Composition(" ^ (name f) ^ "," ^ (name g) ^")"
   | Subdiagram (n, _, _, _) -> n
 
 let rec getOutputs = function
-  | Identity (str,ins,outs)-> list_of outs
+  | Identity (_,_,outs)-> list_of outs
   | Morphism(_,_,outs)     -> list_of outs
   | Tensor(a,b)            -> getOutputs a @ getOutputs b
   | Composition(f,g)       -> getOutputs f @ getOutputs g
   | Subdiagram(_,_,_,outs) -> list_of outs
 
 let rec getInputs = function
-  | Identity (str,ins,outs) -> list_of ins
-  | Morphism(m,ins,_)     -> list_of ins
+  | Identity (_,ins,_) -> list_of ins
+  | Morphism(_,ins,_)     -> list_of ins
   | Tensor(a,b)           -> getInputs a @ getInputs b
   | Composition(f,g)      -> getInputs f @ getInputs g
   | Subdiagram(_,_,ins,_) -> list_of ins
@@ -371,14 +371,15 @@ let rec connect  = function
 
 let rec draw_structurally x y tree styles =
   match tree with
-    | Identity (str,ins,outs)    ->
-        let empty_left  = str ^ "i" in
-        let empty_right = str ^ "o" in
+    | Identity (_,ins,outs)    ->
         let x' = round_to_2dp x in
         let y' = round_to_2dp y in
-        Hashtbl.add nodes (List.hd >>= ins) ((string_of_float x'),(string_of_float y'));
-        Hashtbl.add nodes (List.hd >>= outs) ((string_of_float (x'+.(!box_spacing))), (string_of_float y'));
-        "\t\\draw [black] (" ^ (x' |> string_of_float) ^ ", " ^ (y' |> string_of_float) ^ ") -- (" ^ (x' +. !box_spacing |> string_of_float) ^ "," ^ (y' |> string_of_float)^ ");\n"
+        let x_loc = string_of_float (x' +. (!pixel_b_size)) in
+        let x_loc' = ((string_of_float (x'+.(!pixel_b_size *. 3.4)))) in
+
+        Hashtbl.add nodes (List.hd >>= ins) (x_loc,(string_of_float y'));
+        Hashtbl.add nodes (List.hd >>= outs) (x_loc',(string_of_float y'));
+        "\t\\draw [black] (" ^ x_loc ^ ", " ^ (y' |> string_of_float) ^ ") -- (" ^ x_loc' ^ "," ^ (y' |> string_of_float)^ ");\n"
     | Morphism (m,ins,outs) ->
         let morph   = draw_morphism m (x+.(!box_spacing)) y styles in
         let inps  = gen_inputs  x y (list_of ins) in
@@ -387,7 +388,7 @@ let rec draw_structurally x y tree styles =
         inps ^ outps ^ morph ^  "\n"
     | Tensor(a,b)               ->
         let b' = draw_structurally x y b styles in
-        let a' = draw_structurally x (y+.(!box_spacing *. 2.0)) a styles in
+        let a' = draw_structurally x (y+.(!box_spacing)) a styles in
         a' ^ b'
     | Composition(f,g) ->
         let f' = draw_structurally x y f styles in
@@ -435,6 +436,7 @@ let add_styles (Box (b,_, _, style)) = match style with
     let shp = (match shape with
       | None -> ",rectangle"
       | Some("CIRCLE") -> ",circle"
+      | Some("RECTANGLE") -> "rectangle"
       | Some(s)        -> printf "Trying to match shape %s\n" s; "")
     in shp |> Buffer.add_string temporary;
     let col = (match colour with
@@ -511,9 +513,8 @@ let module_to_subdiag (Module(name,box_list,wire_list',diagram)) =
 let compile_program = function
   | Program(module_list, def_list, diag') ->
           let start = Unix.gettimeofday () in
-
-          printf "\n\n %s \n\n" (Ast.string_of_diagram(diag'));
           (* Find the width and box sizing for the diagram *)
+          printf "\n\n %s \n\n" (Ast.string_of_diagram(diag'));
           let w = width' diag' in
           if w <= 4 then
             ()
@@ -536,12 +537,9 @@ let compile_program = function
           update_morphism_table (unwrap_def_list def_list);
           let fixed_diag = replace_morphism_ports diag in
 
-          printf "Preprocessed diag: \n\n %s \n" (Ast.string_of_diagram fixed_diag);
-
           (* Draw out the body and connect all of the connectable and dangling ports *)
           let body        = (draw_structurally 0.0 5.0 fixed_diag boxes_with_styling)  in
           let links_list  = (Hashtbl.fold (fun k v acc -> (k, v) :: acc) links [])  in (* (string * string) list *)
-          print_links_list links_list;
           let box_list    = (Hashtbl.fold (fun _ v acc -> (get_coords v) :: acc) morphismLocations [])  in
           let links_list' = getNodeLocations links_list in
 

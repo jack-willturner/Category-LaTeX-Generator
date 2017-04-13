@@ -17,7 +17,7 @@ let expected_output5 = "Composition(f,g)"
 let expected_output6 = "Composition(f,g)"
 let expected_output7 = "Composition(f,g)"
 let expected_output8 = "Composition(f,Composition(g,h))"
-let expected_output9 = "Tensor(Subdiagram(m),-1-)"
+let expected_output9 = "Tensor(Subdiagram(m),[]id[])"
 let expected_output10 = "Composition(f,Composition(f,Composition(f,Composition(f,Composition(f,Composition(f,Composition(f,Composition(f,Composition(f,Composition(f,f))))))))))"
 
 let expected_outputs = [expected_output1;expected_output2;expected_output3;expected_output4;expected_output5;expected_output6;expected_output7;expected_output8;expected_output9;expected_output10]

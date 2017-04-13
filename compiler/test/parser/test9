@@ -5,4 +5,4 @@ module m {
 	box h : 2 -> 1.
 	link x y. f[x,1] ; g ; [y,1]h
 }
-<m> | id
+$m | id

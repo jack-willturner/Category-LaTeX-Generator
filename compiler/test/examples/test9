@@ -1,4 +1,4 @@
-(* TEST : link explicit wires over multiple boxes *)
+(* Test : link explicit wires over multiple boxes *)
 box f : 1 -> 2;
 box g : 1 -> 1;
 box h : 2 -> 1.

@@ -1,3 +1,5 @@
+(* Test: integration of styles, compositions, tensors, multiple uses of link syntax *)
 box f : 1 -> 2;
+box g{boxcolour=WHITE; boxshape=CIRCLE} : 1 -> 1;
 box h : 2 -> 1.
-f ; (f | f) ; (h | h) ; h
+link a b, c d, e f. (f[1,a] ; g ; g ; [1,d]h) | (g ; g ; [1,f]h ; g) | (f[c,1] ; f[e,1] ; g ; [b,1]h)

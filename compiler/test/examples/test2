@@ -1,5 +1,5 @@
+(* Test: compositions, tensors and one explicit connection with the link syntax *)
 box f : 1 -> 2;
 box g : 1 -> 1;
 box h : 2 -> 1.
-(f[x,1] ; g ; g) | (g ; g ; g) | (g ; g ; [y,1]h)
-
+link x y. (f[x,1] ; g ; g) | (g ; g ; g) | (g ; g ; [y,1]h)

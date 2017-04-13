@@ -1,4 +1,4 @@
+(* Test : different heights in each vertical split of the diagram *)
 box f : 1 -> 2;
-box g : 1 -> 1;
-box h : 2 -> 1:
-link x y. (f[1,x] ; g ; g) | (g ; g ; g) | (g ; g ; [y,1]h)
+box h : 2 -> 1.
+f ; (f | f) ; (h | h) ; h

@@ -1,0 +1,15 @@
+(* Test: A complicated diagram. This is the drawing of an adder from (Ghica and Lopez, 2017) *) 
+box bl{boxcolour:BLACK;boxshape:CIRCLE} : 1 -> 2;
+box bl2{boxcolour:BLACK;boxshape:CIRCLE} : 1 -> 1;
+box a : 1 -> 1;
+box b : 1 -> 1;
+box c : 1 -> 2;
+box a' : 1 -> 1;
+box b' : 1 -> 1;
+box x' : 1 -> 1;
+box c' : 1 -> 1;
+box xor : 2 -> 1;
+box and : 2 -> 1;
+box x : 1 -> 2;
+box or : 2 -> 1.
+link a b, c d, e f, g h, i j, k l. (bl[1,e] | bl[1,g] | bl2) ; (a | b | c[a,c]) ; (a' | b' | [j]x' | [b]c' | [d]c' | [l]x' | [f]b | [h]a) ; (xor | xor | and | and) ; (x[i,k] | id | or)

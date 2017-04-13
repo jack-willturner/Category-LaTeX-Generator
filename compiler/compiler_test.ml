@@ -45,51 +45,6 @@ let generate_nodes_test =
 	test "generate_nodes" (List.length node_list5) (10);
 	test "generate_nodes" (List.length node_list6) (10)
 
-(* Copied from Compiler - algorithmically identical but output changed from unit
-   adding to Hashtbl to a (string * string) list for ease of testing *)
-	(*
-let gen_inputs x y = function
-  | []     -> ""
-  | xs'    ->
-            let xs = List.rev xs' in
-            let spacing = 1.25 /. float ((List.length xs) + 1) in
-            let base = y -. (0.62) in
-            for i = 0 to (List.length xs - 1) do
-              let curr_input = List.nth xs i in
-
-              let from_y' = (base +. float (i+1) *. spacing) in
-              let from_y'' = from_y' *. 10.0 |> int_of_float |> float_of_int in
-              let from_y = from_y'' /. 10.0 |> string_of_float in
-
-              let to_x = x +. (!box_spacing) -. (!pixel_b_size) |> string_of_float in
-              let to_y = from_y in
-
-              (match curr_input with
-                | str -> Hashtbl.add nodes str (to_x, to_y)
-              )
-            done;
-						let inputs = Hashtbl.fold (fun k v acc -> (k,v) :: acc) nodes [] in
-						Hashtbl.clear nodes;
-						inputs
-
-let gen_inputs_test =
-	let input_drawing1 = gen_inputs 5 5 [] 		 in
-	let input_drawing2 = gen_inputs 5 5 [1] 		in
-	let input_drawing3 = gen_inputs 5 5 [x]     in
-	let input_drawing4 = gen_inputs 5 5 [1,x]   in
-	let input_drawing5 = gen_inputs 5 5 [x,1]   in
-	let input_drawing6 = gen_inputs 5 5 [1,x,1] in
-	test "gen_inputs" *)
-
-
-(* TODO:
-		- gen_inputs
-		- gen_outputs
-		- fix_nodes
-		- replace_morphism_ports
-		- replace_subdiagrams
-*)
-
 let _ =
 	generate_nodes_test;
 	type_inputs_test;
@@ -98,5 +53,5 @@ let _ =
 		printf "All compiler tests passed\n"
 	else begin
 		printf "Some failures occured:\n";
-		(List.map (fun (k,v) -> printf "\tFailure in %s\n" k) failure_list; ())
+		(List.map (fun (k,v) -> printf "\tFailure in %s\n" k) failure_list; (); ())
 	end

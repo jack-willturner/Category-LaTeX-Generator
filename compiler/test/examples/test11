@@ -1,3 +1,4 @@
+(* Test: simple tensor cases with no explicit connections *)
 box f : 1 -> 2;
 box g : 1 -> 1;
 box h : 2 -> 1.

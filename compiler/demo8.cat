@@ -1,2 +1,0 @@
-box f : 1 -> 1.
-link x y. f[x] ; f ; f ; f ; f ; f ; [y]f ; f ; f 

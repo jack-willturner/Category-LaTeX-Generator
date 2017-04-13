@@ -1,3 +1,4 @@
+(* TEST: basic compositions with inferred port connections. Also test that comments are ignored *)
 box f : 1 -> 2;
 box g : 1 -> 1;
 box h : 2 -> 1.

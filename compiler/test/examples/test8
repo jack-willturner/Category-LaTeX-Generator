@@ -1,4 +1,4 @@
-(* TEST: composition of more than 2 boxes *)
+(* Test: composition of more than 2 boxes *)
 box f : 1 -> 1;
 box g : 1 -> 1;
 box h : 1 -> 1.

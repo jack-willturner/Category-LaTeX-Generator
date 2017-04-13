@@ -9,7 +9,7 @@ open Ast
 
 let fileno = ref 0
 
-let test_files = ["test/examples/test1";"test/examples/test2";"test/examples/test3";"test/examples/test4";"test/examples/test5";"test/examples/test6";"test/examples/test7";"test/examples/test8";"test/examples/test9";"test/examples/test10";"test/examples/test11";"test/examples/test12";"test/examples/test13";"test/examples/modtest1";"test/examples/modtest2"]
+let test_files = ["test/integration_tests/demo1.cat";"test/integration_tests/demo2.cat";"test/integration_tests/demo3.cat";"test/integration_tests/demo4.cat";"test/integration_tests/demo5.cat";"test/integration_tests/demo6.cat";"test/integration_tests/demo7.cat";"test/integration_tests/demo8.cat"]
 
 let rec read_to_empty buf in_channel =
 	Lexer.lineno := 1;
@@ -45,7 +45,6 @@ let run_test filename =
 	|> Lexing.from_string
 	|> parse_with_error
   |> Compiler.compile_program in
-	printf "Test %i compiled!\n" !fileno;
   let output_file = filename ^ ".tex" in
 	let oc = open_out output_file in
 	fprintf oc "%s\n" actual_result;

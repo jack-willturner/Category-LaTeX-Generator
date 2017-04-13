@@ -20,6 +20,7 @@ let coord_of_string str =
    | _     -> failwith "coord_of_string")
 
 
+
 (* Each adjacency list is made up of 8 elements describing the successors of the square clockwise  *)
 let generate_adjacency_lists x y =
  for i = 0 to x do
@@ -183,10 +184,10 @@ let expand vertex visited = try let {name; xLoc; yLoc; status; successors;parent
        []
      else
        let new_successors = (match status with
-           | Free                 -> clean [(List.nth successors 2);(List.nth successors 0);(List.nth successors 4); (List.nth successors 6)] |> remove visited
+           | Free                 -> clean [(List.nth successors 2);(List.nth successors 0);(List.nth successors 4);(List.nth successors 6)] |> remove visited
            | OccupiedHorizontal   -> clean [(List.nth successors 0);(List.nth successors 4)] (* can only go up/down *)    |> remove visited
            | OccupiedVertical     -> clean [(List.nth successors 2);(List.nth successors 6)] (* can only go left/right *) |> remove visited
-           | Blocked              -> [] ) in
+           | Blocked              -> [] ) in  
          for i = 0 to (List.length new_successors - 1) do
            let {name; xLoc; yLoc; status; successors;  parent; cost} = Hashtbl.find graph (List.nth new_successors i) in
            Hashtbl.replace graph (List.nth new_successors i) {name = name;
@@ -203,34 +204,45 @@ let expand vertex visited = try let {name; xLoc; yLoc; status; successors;parent
 
 let rec strategy' oldf newf visited goal cost_so_far = match newf with
  | []        -> oldf
- | x::xs     -> let (node_x,node_y) = coord_of_string x in
-                let (goal_x,goal_y) = coord_of_string goal in
-                let manhattan_dist = (abs(node_x - goal_x) + abs(node_y - goal_y)) * 10 in
+ | x::xs     ->
+                if (String.length x >= 4) then begin
+                  let (node_x',node_y') = coord_of_string x in
+                  let (goal_x',goal_y') = coord_of_string goal in
 
-                let {name; xLoc; yLoc; status; successors; parent;cost} = Hashtbl.find graph x in
-                let n = name
-                and xL = xLoc
-                and yL = yLoc
-                and stat = status
-                and succ = successors
-                and p = parent
-                and c = cost in
-                if parent = "" then
-                  let parent_cost = 10 in
-                  Hashtbl.replace graph x {name; xLoc; yLoc; status; successors; parent;cost=(parent_cost)};
-                  strategy' (PrioQueue.insert oldf (manhattan_dist + (parent_cost)) x visited) xs visited goal cost_so_far
-                else
-                  let {name; xLoc; yLoc; status; successors; parent;cost} = Hashtbl.find graph parent in
-                  let parent_cost = cost + 10 in
-                  if direction x = Blocked then begin
-                    (* If x is trying to turn a corner, then we add an additional cost of 5 to smooth out paths *)
-                    Hashtbl.replace graph x {name = n; xLoc = xL; yLoc = yL; status = stat; successors = succ; parent = p;cost=(parent_cost+70)};
-                    strategy' (PrioQueue.insert oldf (manhattan_dist + (parent_cost+70)) x visited) xs visited goal cost_so_far
-                  end
-                  else begin
-                    Hashtbl.replace graph x {name = n; xLoc = xL; yLoc = yL; status = stat; successors = succ; parent = p;cost=(parent_cost)};
+                  let (node_x,node_y) = ((float_of_int node_x'), (float_of_int node_y')) in
+                  let (goal_x,goal_y) = ((float_of_int goal_x'), (float_of_int goal_y')) in
+
+                  let manhattan_dist = (abs(node_x' - goal_x') + abs(node_y' - goal_y')) * 10 in
+
+                  (* let manhattan_dist = sqrt((node_x -. goal_x)**2. +. (node_y -. goal_y)**2.) |> int_of_float in *)
+
+                  let {name; xLoc; yLoc; status; successors; parent;cost} = Hashtbl.find graph x in
+                  let n = name
+                  and xL = xLoc
+                  and yL = yLoc
+                  and stat = status
+                  and succ = successors
+                  and p = parent
+                  and c = cost in
+                  if parent = "" then
+                    let parent_cost = 10 in
+                    Hashtbl.replace graph x {name; xLoc; yLoc; status; successors; parent;cost=(parent_cost)};
                     strategy' (PrioQueue.insert oldf (manhattan_dist + (parent_cost)) x visited) xs visited goal cost_so_far
-                  end
+                  else
+                    let {name; xLoc; yLoc; status; successors; parent;cost} = Hashtbl.find graph parent in
+                    let parent_cost = cost + 10 in
+                    if direction x = Blocked then begin
+                      (* If x is trying to turn a corner, then we add an additional cost of 5 to smooth out paths *)
+                      Hashtbl.replace graph x {name = n; xLoc = xL; yLoc = yL; status = stat; successors = succ; parent = p;cost=(parent_cost+70)};
+                      strategy' (PrioQueue.insert oldf (manhattan_dist + (parent_cost+70)) x visited) xs visited goal cost_so_far
+                    end
+                    else begin
+                      Hashtbl.replace graph x {name = n; xLoc = xL; yLoc = yL; status = stat; successors = succ; parent = p;cost=(parent_cost)};
+                      strategy' (PrioQueue.insert oldf (manhattan_dist + (parent_cost)) x visited) xs visited goal cost_so_far
+                    end
+                end else begin
+                  oldf
+                end
 
 let scale_down box_size (x,y) =
       let x' = float (x) /. 10.0 in
@@ -252,7 +264,7 @@ let rec scale_up' box_size = function
               let yy = y *. 10.0  |> int_of_float in
               ((xx,yy)):: scale_up' box_size xs
 
-
+(*)
 let rec corners'' = function
   | []          -> []
   | [x]         -> [x]
@@ -260,6 +272,18 @@ let rec corners'' = function
                    if status=Blocked then
                       x::corners'' xs
                    else corners'' (y::xs)
+*)
+let rec corners'' = function
+| []          -> []
+| [x]         -> [x]
+| (x,y)::[(x',y')]                -> (x,y)::[(x',y')]
+| (x,y)::(x',y')::(x'',y'')::xs  -> if x == x' && x == x'' then
+                                      corners'' ((x',y')::(x'',y'')::xs)
+                                    else
+                                      if y == y' && y == y'' then
+                                        corners'' ((x',y')::(x'',y'')::xs)
+                                      else
+                                        (x,y) :: corners'' xs
 
 let last ls = List.rev ls |> List.hd
 
@@ -326,7 +350,7 @@ let rec find_route = function
    free_coord ((from_x-3), from_y);
    free_coord (to_x, to_y); (* always want to link left to right *)
    free_coord ((to_x-3), to_y);
-   (* Ensure that the port cannot be entered from below or above - this forces the wires to connect horizontally which gives nicer curves in the diagram*)
+   (* Ensure that the port cannot be entered from below or above - this forces the wires to connect horizontally which gives nicer curves*)
    block_coord (string_of_coord to_x (to_y - 1)); block_coord (string_of_coord to_x (to_y + 1));
    block_coord (string_of_coord from_x (from_y - 1)); block_coord (string_of_coord from_x (from_y + 1));
    let goal = string_of_coord to_x to_y in
@@ -340,7 +364,7 @@ let rec find_route = function
    let route   = (search start goal fringe' [start] ) in
    mark_dirs' route;
    reset_costs;
-   (corners(route @[start]))  :: (find_route xs)
+   ((*corners*)(route @[start]))  :: (find_route xs)
 
 let find_routes wires width height bx_size boxes =
    let width'   = width  * 10 in (* width of the whole frame *)
@@ -348,4 +372,4 @@ let find_routes wires width height bx_size boxes =
    let height'  = height * 10  + (box_size * 10) in (* height of the whole frame *)
    generate_adjacency_lists (width') (height');
    place_morphisms (box_size) (scale_up' box_size boxes);
-   scale_up (float box_size) wires |> find_route |> List.map (List.map coord_of_string) |> List.map (List.map (scale_down box_size)) |> List.map remove_duplicates
+   scale_up (float box_size) wires |> find_route |> List.map (List.map coord_of_string) |> List.map (List.map (scale_down box_size)) |> List.map corners |> List.map remove_duplicates

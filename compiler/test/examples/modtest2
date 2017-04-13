@@ -1,9 +1,10 @@
+(* Test : check composition of modules with overlapping names *)
 module m {
-  box f : 1 -> 1
-  link . f
+  box f : 1 -> 1.
+  f
 }
 module n {
-  box f : 1 -> 1
-  link . f
+  box f : 1 -> 1.
+  f
 }
-<m> ; <n>
+$m ; $n

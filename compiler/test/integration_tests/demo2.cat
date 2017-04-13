@@ -1,3 +1,4 @@
+(* Test : fork and join constants *)
 box f : 1 -> 2;
 box g : 2 -> 1.
 link x< y>. f[1,x<] ; [1,y>]g

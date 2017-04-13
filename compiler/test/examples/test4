@@ -1,2 +1,3 @@
+(* Test: Check that dangling wires are drawn correctly when there are no compositions or tensors *)
 box f : 1 -> 1.
-f 
+f
