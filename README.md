@@ -88,3 +88,12 @@ module m = {
 $m ; $m
 ```
 where `$m ; $m` composes `m` onto itself.
+
+
+## Tests
+Due to some issues with `corebuild` the tests are best compiled by hand and inspected individually.
+Type:
+```
+make file=test/<test-dir>/<individual-test>
+```
+to view the generated pdfs. 
