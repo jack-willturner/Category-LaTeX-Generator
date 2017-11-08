@@ -1,7 +1,5 @@
 # The Category Compiler
-This is the repository that will be used to manage the code for my final year project at the University of Birmingham. The tool itself will be a web-based application that allows users to describe the string-diagrams of monoidal categories using the syntax defined below. The compiler will then compute and generate the corresponding LaTeX to draw the diagram.
-
-Currently the main features are all working (with a few bugs) but the tool is command-line based.
+Currently the main features are all working (with a few bugs) but the tool is command-line based - there is also the website version [here](http://jack-turner.co.uk/category-compiler/)
 
 # Installation instructions
 Packages you'll need to have installed:
