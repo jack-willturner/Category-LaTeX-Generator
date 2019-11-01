@@ -1,5 +1,5 @@
 # The Category Compiler
-Currently the main features are all working (with a few bugs) but the tool is command-line based - there is also the website version [here](http://jack-turner.co.uk/category-compiler/)
+Currently the main features are all working (with a few bugs) but the tool is command-line based - there is also the website version [here](http://jack-willturner.github.io/category-compiler/)
 
 # Installation instructions
 Packages you'll need to have installed:
